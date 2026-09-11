@@ -254,16 +254,27 @@ without sufficient business benefit for the supplied constraints.
 │
 ├── scripts/
 │   ├── bootstrap.sh
-│   └── validate.sh
+│   ├── validate.sh
+│   └── generate_schemas.py
+│
+├── tests/
+│   ├── unit/
+│   ├── golden/
+│   └── integration/
+│
+├── web/                        # Next.js UI over the FastAPI JSON API
+│   └── src/
 │
 └── src/aura/
-    ├── requirements/
-    ├── architecture/
-    ├── failure/
-    ├── scoring/
-    ├── cost/
-    ├── aws/
-    ├── reporting/
+    ├── domain/                 # enums, Workload/graph models, parsing
+    ├── requirements/           # loader, validator, normalizer
+    ├── architecture/           # pattern catalog, candidate generator
+    ├── failure/                # scenarios, simulator, blast radius
+    ├── cost/                   # scenario-based cost estimates
+    ├── evaluation/             # rules, scoring, eligibility
+    ├── providers/               # Terraform plan parser, read-only AWS inventory (Phase 2)
+    ├── reporting/               # Markdown report + ADR generation
+    ├── web/                     # FastAPI app backing the Next.js UI
     └── cli/
 ```
 
@@ -272,17 +283,48 @@ without sufficient business benefit for the supplied constraints.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 aws sts get-caller-identity
 terraform version
 
-python -m aura.cli validate config/flash-commerce.yaml
-python -m aura.cli analyze config/flash-commerce.yaml
-python -m aura.cli report config/flash-commerce.yaml --output artifacts/report
+aura validate config/flash-commerce.yaml
+aura analyze config/flash-commerce.yaml
+aura failures config/flash-commerce.yaml
+aura score config/flash-commerce.yaml
+aura report config/flash-commerce.yaml --output artifacts/report
+aura adr config/flash-commerce.yaml --output artifacts/adr
+
+pytest -q
 ```
 
 The exact package layout can be adjusted during Phase 1; the important contract is that configuration, domain logic, and provider integration remain separated.
+
+## Web UI
+
+A Next.js front end (`web/`) runs the same pipeline in the browser — a "how it works"
+walkthrough plus a live demo you can point at any workload YAML. It talks to a small
+FastAPI JSON API (`aura serve`); nothing in either process calls AWS.
+
+```bash
+# terminal 1 — API
+pip install -e .
+aura serve                 # http://127.0.0.1:8000
+
+# terminal 2 — UI
+cd web
+npm install
+npm run dev                # http://localhost:3000
+```
+
+Then open http://localhost:3000. If the API runs on a non-default host/port, point the UI
+at it with `NEXT_PUBLIC_AURA_API_URL` and allow that UI origin on the API with
+`AURA_WEB_ORIGIN`, e.g.:
+
+```bash
+AURA_WEB_ORIGIN=http://localhost:3100 aura serve --port 8100
+NEXT_PUBLIC_AURA_API_URL=http://127.0.0.1:8100 npm run dev -- --port 3100
+```
 
 ## Engineering principles
 

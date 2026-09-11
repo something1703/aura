@@ -364,5 +364,20 @@ def validate_deployed(
         raise typer.Exit(code=1)
 
 
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host."),
+    port: int = typer.Option(8000, "--port", help="Bind port."),
+    reload: bool = typer.Option(False, "--reload", help="Auto-reload on source changes (development only)."),
+) -> None:
+    """Run the AURA JSON API that backs the web UI (see web/, `npm run dev`)."""
+
+    import uvicorn
+
+    typer.secho(f"AURA API: http://{host}:{port}  (docs: http://{host}:{port}/docs)", fg=typer.colors.GREEN, err=True)
+    typer.secho("Start the UI separately: cd web && npm run dev", fg=typer.colors.GREEN, err=True)
+    uvicorn.run("aura.web.app:app", host=host, port=port, reload=reload)
+
+
 if __name__ == "__main__":
     app()
