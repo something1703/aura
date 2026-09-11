@@ -1,0 +1,55 @@
+application:
+  name: flash-commerce
+  type: ecommerce
+  stateful: true
+
+traffic:
+  average_rps: 5000
+  peak_rps: 150000
+  peak_duration_minutes: 20
+  growth_percent_per_month: 15
+
+availability:
+  target: 99.99%
+  multi_az_required: true
+
+recovery:
+  rto_minutes: 5
+  rpo_minutes: 1
+  regional_disaster_required: true
+
+consistency:
+  orders: strong
+  payments: strong
+  catalog: eventual
+
+geography:
+  primary_regions:
+    - ap-south-1
+  user_regions:
+    - IN
+    - SG
+    - AE
+
+budget:
+  monthly_usd: 15000
+  hard_limit: false
+
+deployment:
+  frequency_per_day: 10
+  downtime_allowed: false
+  rollback_target_minutes: 5
+
+security:
+  internet_facing: true
+  data_classification: confidential
+  encryption_at_rest: true
+  encryption_in_transit: true
+
+assumptions:
+  - id: traffic-burst
+    statement: peak traffic may arrive within 30 seconds
+    confidence: 0.8
+  - id: regional-failover
+    statement: business accepts degraded capacity during regional recovery
+    confidence: 0.7

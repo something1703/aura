@@ -3,7 +3,8 @@
 Commands are added incrementally as each domain engine lands:
 ``validate`` (Iteration 1), ``analyze`` (Iteration 2), ``score``
 (Iteration 3), ``failures`` (Iteration 4), ``report``/``adr`` (Iteration 5),
-``aws inventory``/``terraform inspect``/``validate-deployed`` (Phase 2).
+``aws inventory``/``terraform inspect``/``validate-deployed`` (Phase 2),
+``gate``/``observe``/``chaos`` (Phase 3).
 """
 
 from __future__ import annotations
@@ -36,8 +37,14 @@ app = typer.Typer(
 )
 aws_app = typer.Typer(add_completion=False, no_args_is_help=True, help="Read-only AWS inspection (Phase 2).")
 terraform_app = typer.Typer(add_completion=False, no_args_is_help=True, help="Terraform plan inspection (Phase 2).")
+chaos_app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    help="Controlled failure experiments (Phase 3, docs-sanctioned first tier only).",
+)
 app.add_typer(aws_app, name="aws")
 app.add_typer(terraform_app, name="terraform")
+app.add_typer(chaos_app, name="chaos")
 
 
 def _version_callback(value: bool) -> None:
@@ -362,6 +369,202 @@ def validate_deployed(
         )
     if not report.passed:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def gate(
+    workload_path: Path = typer.Argument(..., help="Path to a workload YAML file."),
+    min_confidence: float = typer.Option(
+        0.0, "--min-confidence", help="Fail if the recommendation's confidence is below this (0-1)."
+    ),
+    baseline: Path | None = typer.Option(
+        None, "--baseline", help="Path to a JSON file with a prior {'recommendation_id': ...} to diff against."
+    ),
+) -> None:
+    """CI architecture gate (docs/IMPLEMENTATION_PHASES.md Phase 3): exit non-zero on a
+    mandatory-constraint failure (no eligible candidate) or low-confidence recommendation.
+    A changed recommendation vs. --baseline is reported but does not fail the build — an
+    architecture change can be intentional."""
+
+    try:
+        _, _, candidates, scores = _evaluate_workload(workload_path)
+    except AuraError as exc:
+        fail(exc)
+        return
+
+    recommendation = select_recommendation(scores)
+    eligible_count = sum(1 for s in scores if s.eligibility == EligibilityStatus.ELIGIBLE)
+
+    typer.echo(f"candidates: {len(candidates)} generated, {eligible_count} eligible")
+
+    if recommendation is None:
+        typer.secho(
+            "GATE FAILED: no eligible candidate — every candidate violates a mandatory constraint.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        for s in scores:
+            if s.ineligibility_reasons:
+                typer.secho(f"  {s.candidate_id}: {'; '.join(s.ineligibility_reasons)}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(
+        f"recommendation: {recommendation.candidate_id} "
+        f"(score={recommendation.weighted_score}, confidence={recommendation.confidence})"
+    )
+
+    if baseline is not None and baseline.exists():
+        import json as _json
+
+        previous = _json.loads(baseline.read_text(encoding="utf-8")).get("recommendation_id")
+        if previous and previous != recommendation.candidate_id:
+            typer.secho(
+                f"NOTE: recommendation changed from '{previous}' to '{recommendation.candidate_id}' "
+                "— confirm this is intentional.",
+                fg=typer.colors.YELLOW,
+                err=True,
+            )
+
+    if recommendation.confidence < min_confidence:
+        typer.secho(
+            f"GATE FAILED: recommendation confidence {recommendation.confidence} is below "
+            f"--min-confidence {min_confidence}.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    typer.secho("GATE PASSED", fg=typer.colors.GREEN, err=True)
+
+
+@app.command()
+def observe(
+    namespace: str = typer.Option(..., "--namespace", help="CloudWatch namespace, e.g. AWS/RDS."),
+    metric_name: str = typer.Option(..., "--metric", help="CloudWatch metric name, e.g. ReplicaLag."),
+    dimension: list[str] = typer.Option(
+        ..., "--dimension", help="Dimension as Name=Value. Repeatable for multiple dimensions."
+    ),
+    region: str = typer.Option(..., "--region", help="AWS region the metric lives in."),
+    statistic: str = typer.Option("Average", "--statistic", help="CloudWatch statistic."),
+    minutes: int = typer.Option(15, "--minutes", help="Lookback window."),
+) -> None:
+    """Pull a real CloudWatch metric — the one place AURA can produce MEASURED
+    (not MODELLED) evidence. Example: verify the actual cross-region replica
+    lag against the RPO the failure model assumed.
+
+    \b
+    aura observe --namespace AWS/RDS --metric ReplicaLag --region ap-southeast-1 \\
+        --dimension DBInstanceIdentifier=aura-demo-secondary
+    """
+
+    from aura.providers.observability import Boto3ObservabilityProvider
+
+    dimensions: dict[str, str] = {}
+    for item in dimension:
+        if "=" not in item:
+            typer.secho(f"error: --dimension must be Name=Value, got: {item}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1)
+        key, _, value = item.partition("=")
+        dimensions[key] = value
+
+    try:
+        provider = Boto3ObservabilityProvider()
+        series = provider.get_metric(
+            namespace=namespace,
+            metric_name=metric_name,
+            dimensions=dimensions,
+            statistic=statistic,
+            minutes=minutes,
+            region=region,
+        )
+    except AuraError as exc:
+        fail(exc)
+        return
+
+    typer.echo(to_json(series.model_dump(mode="json")))
+    if series.latest is None:
+        typer.secho("no datapoints in this window (metric may be inactive, or the window too short).", fg=typer.colors.YELLOW, err=True)
+    else:
+        typer.secho(f"latest: {series.latest}", fg=typer.colors.GREEN, err=True)
+
+
+@chaos_app.command("terminate-task")
+def chaos_terminate_task(
+    cluster: str = typer.Option(..., "--cluster", help="ECS cluster name."),
+    region: str = typer.Option(..., "--region"),
+    confirm: bool = typer.Option(
+        False, "--confirm", help="Required: acknowledges this stops a real, running ECS task."
+    ),
+) -> None:
+    """Docs-sanctioned experiment #1: terminate one disposable task and let the
+    orchestrator replace it. This is a REAL, mutating AWS call."""
+
+    if not confirm:
+        typer.secho(
+            "refusing to run: pass --confirm to acknowledge this stops a real running ECS task.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    from aura.providers.chaos import Boto3ChaosProvider
+
+    try:
+        provider = Boto3ChaosProvider()
+        result = provider.stop_one_task(cluster=cluster, region=region)
+    except AuraError as exc:
+        fail(exc)
+        return
+
+    typer.echo(to_json(result.model_dump(mode="json")))
+    typer.secho("stopped. watch the service's task count to confirm the orchestrator replaces it.", fg=typer.colors.GREEN, err=True)
+
+
+@chaos_app.command("remove-target")
+def chaos_remove_target(
+    target_group_arn: str = typer.Option(..., "--target-group-arn"),
+    region: str = typer.Option(..., "--region"),
+    confirm: bool = typer.Option(
+        False, "--confirm", help="Required: acknowledges this deregisters a real, healthy target."
+    ),
+) -> None:
+    """Docs-sanctioned experiment #2: remove one healthy target from an ALB
+    target group. This is a REAL, mutating AWS call."""
+
+    if not confirm:
+        typer.secho(
+            "refusing to run: pass --confirm to acknowledge this deregisters a real healthy target.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    from aura.providers.chaos import Boto3ChaosProvider
+
+    try:
+        provider = Boto3ChaosProvider()
+        result = provider.deregister_one_target(target_group_arn=target_group_arn, region=region)
+    except AuraError as exc:
+        fail(exc)
+        return
+
+    typer.echo(to_json(result.model_dump(mode="json")))
+
+
+@chaos_app.command("synthetic-traffic")
+def chaos_synthetic_traffic(
+    url: str = typer.Argument(..., help="URL to hit repeatedly, e.g. an ALB DNS name."),
+    duration: float = typer.Option(30.0, "--duration", help="Seconds to run."),
+    rps: float = typer.Option(2.0, "--rps", help="Requests per second."),
+) -> None:
+    """Docs-sanctioned experiment #3: generate synthetic traffic. Plain HTTP
+    GETs — non-destructive, needs no AWS permissions, not gated by --confirm."""
+
+    from aura.providers.chaos import generate_synthetic_traffic
+
+    typer.secho(f"sending ~{rps} req/s to {url} for {duration}s...", err=True)
+    result = generate_synthetic_traffic(url, duration_seconds=duration, requests_per_second=rps)
+    typer.echo(to_json(result.model_dump(mode="json")))
 
 
 @app.command()

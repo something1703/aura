@@ -12,7 +12,7 @@ purpose. This process never serves HTML itself.
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from importlib import resources
 from typing import Any
 
 import yaml
@@ -32,9 +32,6 @@ from aura.reporting.diagram import to_mermaid
 from aura.reporting.markdown import render_report
 from aura.requirements.normalizer import normalize
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_EXAMPLE_WORKLOAD_PATH = _REPO_ROOT / "config" / "flash-commerce.yaml"
-
 _DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 _extra_origins = os.environ.get("AURA_WEB_ORIGIN")
 
@@ -53,7 +50,12 @@ class AnalyzeRequest(BaseModel):
 
 @app.get("/api/example")
 def example() -> dict[str, str]:
-    text = _EXAMPLE_WORKLOAD_PATH.read_text(encoding="utf-8")
+    # Bundled as package data (not read from ../../config/ by relative path)
+    # so this works the same whether run from source, `pip install`, or the
+    # Docker image — none of which put the repo's config/ next to the
+    # installed package. Kept in sync with config/flash-commerce.yaml by
+    # hand; that file is still the one the CLI and docs point at.
+    text = resources.files("aura.web.examples").joinpath("flash-commerce.yaml").read_text(encoding="utf-8")
     return {"yaml_text": text}
 
 
