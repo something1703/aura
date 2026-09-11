@@ -97,8 +97,22 @@ def fake_provider() -> Boto3AwsProvider:
         [{"CacheClusters": [{"CacheClusterId": "cache-1", "Engine": "redis", "PreferredAvailabilityZone": "ap-south-1a"}]}],
     )
 
+    ecs = MagicMock()
+    ecs.list_clusters.return_value = {"clusterArns": ["arn:aws:ecs:ap-south-1:123:cluster/demo-cluster"]}
+    _paginated(ecs, [{"taskArns": ["arn:aws:ecs:ap-south-1:123:task/demo-cluster/abc123"]}])
+    ecs.describe_tasks.return_value = {
+        "tasks": [
+            {
+                "taskArn": "arn:aws:ecs:ap-south-1:123:task/demo-cluster/abc123",
+                "availabilityZone": "ap-south-1c",
+                "lastStatus": "RUNNING",
+                "launchType": "FARGATE",
+            }
+        ]
+    }
+
     provider._boto3 = _FakeBoto3(
-        {"ec2": ec2, "rds": rds, "elbv2": elbv2, "elasticache": elasticache}
+        {"ec2": ec2, "rds": rds, "elbv2": elbv2, "elasticache": elasticache, "ecs": ecs}
     )
     return provider
 
@@ -133,11 +147,21 @@ def test_describe_cache_clusters(fake_provider):
     assert clusters[0].id == "cache-1"
 
 
+def test_describe_ecs_tasks_maps_fargate_tasks_as_compute(fake_provider):
+    tasks = fake_provider.describe_ecs_tasks("ap-south-1")
+    assert len(tasks) == 1
+    assert tasks[0].kind == "compute"
+    assert tasks[0].az == "ap-south-1c"
+    assert tasks[0].attributes["launch_type"] == "FARGATE"
+
+
 def test_collect_inventory_aggregates_all_resource_kinds(fake_provider):
     inventory = collect_inventory(fake_provider, "ap-south-1")
     assert inventory.region == "ap-south-1"
     assert inventory.availability_zones == ["ap-south-1a", "ap-south-1b"]
-    assert len(inventory.of_kind("compute")) == 1
+    # 1 EC2 instance + 1 ECS Fargate task: Fargate compute has no EC2 footprint,
+    # so both sources must be checked to see all compute (see describe_ecs_tasks).
+    assert len(inventory.of_kind("compute")) == 2
     assert len(inventory.of_kind("database")) == 1
     assert len(inventory.of_kind("load_balancer")) == 1
     assert len(inventory.of_kind("cache")) == 1

@@ -23,6 +23,7 @@ from aura.providers.models import AwsInventory, ObservedResource
 class AwsProvider(Protocol):
     def describe_availability_zones(self, region: str) -> list[str]: ...
     def describe_instances(self, region: str) -> list[ObservedResource]: ...
+    def describe_ecs_tasks(self, region: str) -> list[ObservedResource]: ...
     def describe_db_instances(self, region: str) -> list[ObservedResource]: ...
     def describe_load_balancers(self, region: str) -> list[ObservedResource]: ...
     def describe_cache_clusters(self, region: str) -> list[ObservedResource]: ...
@@ -82,6 +83,44 @@ class Boto3AwsProvider:
                             },
                         )
                     )
+        return resources
+
+    def describe_ecs_tasks(self, region: str) -> list[ObservedResource]:
+        """Fargate/ECS compute — invisible to describe_instances since it isn't EC2."""
+
+        client = self._client("ecs", region)
+        resources: list[ObservedResource] = []
+
+        clusters_response = self._call("list_clusters", client.list_clusters)
+        for cluster_arn in clusters_response.get("clusterArns", []):
+            task_arns: list[str] = []
+            paginator = client.get_paginator("list_tasks")
+            for page in self._call(
+                "list_tasks",
+                lambda: list(paginator.paginate(cluster=cluster_arn, desiredStatus="RUNNING")),
+            ):
+                task_arns.extend(page.get("taskArns", []))
+
+            if not task_arns:
+                continue
+
+            described = self._call(
+                "describe_tasks", client.describe_tasks, cluster=cluster_arn, tasks=task_arns
+            )
+            for task in described.get("tasks", []):
+                resources.append(
+                    ObservedResource(
+                        kind="compute",
+                        id=task["taskArn"],
+                        region=region,
+                        az=task.get("availabilityZone"),
+                        attributes={
+                            "cluster": cluster_arn.split("/")[-1],
+                            "last_status": task.get("lastStatus"),
+                            "launch_type": task.get("launchType"),
+                        },
+                    )
+                )
         return resources
 
     def describe_db_instances(self, region: str) -> list[ObservedResource]:
@@ -146,6 +185,7 @@ def collect_inventory(provider: AwsProvider, region: str) -> AwsInventory:
 
     resources: list[ObservedResource] = []
     resources.extend(provider.describe_instances(region))
+    resources.extend(provider.describe_ecs_tasks(region))
     resources.extend(provider.describe_db_instances(region))
     resources.extend(provider.describe_load_balancers(region))
     resources.extend(provider.describe_cache_clusters(region))
