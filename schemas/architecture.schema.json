@@ -1,0 +1,242 @@
+{
+  "$defs": {
+    "Component": {
+      "properties": {
+        "attributes": {
+          "additionalProperties": true,
+          "title": "Attributes",
+          "type": "object"
+        },
+        "critical_dependency": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "title": "Critical Dependency",
+          "type": "object"
+        },
+        "depends_on": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "instances": {
+          "items": {
+            "$ref": "#/$defs/Instance"
+          },
+          "title": "Instances",
+          "type": "array"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "replication": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replication"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "instances"
+      ],
+      "title": "Component",
+      "type": "object"
+    },
+    "Graph": {
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/Component"
+          },
+          "title": "Components",
+          "type": "array"
+        }
+      },
+      "required": [
+        "components"
+      ],
+      "title": "Graph",
+      "type": "object"
+    },
+    "Instance": {
+      "properties": {
+        "az": {
+          "title": "Az",
+          "type": "string"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "az",
+        "region"
+      ],
+      "title": "Instance",
+      "type": "object"
+    },
+    "PatternSupport": {
+      "properties": {
+        "availability_min": {
+          "description": "Best-case availability percentage this pattern delivers.",
+          "title": "Availability Min",
+          "type": "number"
+        },
+        "rpo_max_seconds": {
+          "description": "Worst-case data loss window this pattern delivers.",
+          "title": "Rpo Max Seconds",
+          "type": "number"
+        },
+        "rto_max_seconds": {
+          "description": "Worst-case recovery time this pattern delivers.",
+          "title": "Rto Max Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "availability_min",
+        "rto_max_seconds",
+        "rpo_max_seconds"
+      ],
+      "title": "PatternSupport",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "availability_model": {
+      "title": "Availability Model",
+      "type": "string"
+    },
+    "cost_assumptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Cost Assumptions",
+      "type": "array"
+    },
+    "data_strategy": {
+      "title": "Data Strategy",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "failure_modes_tolerated": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Failure Modes Tolerated",
+      "type": "array"
+    },
+    "failure_strategy": {
+      "title": "Failure Strategy",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "known_limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Known Limitations",
+      "type": "array"
+    },
+    "multi_region": {
+      "title": "Multi Region",
+      "type": "boolean"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "primary_region": {
+      "title": "Primary Region",
+      "type": "string"
+    },
+    "regional_resilience": {
+      "title": "Regional Resilience",
+      "type": "boolean"
+    },
+    "requires": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Requires",
+      "type": "array"
+    },
+    "scaling_model": {
+      "title": "Scaling Model",
+      "type": "string"
+    },
+    "secondary_region": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Secondary Region"
+    },
+    "secondary_region_assumed": {
+      "title": "Secondary Region Assumed",
+      "type": "boolean"
+    },
+    "supports": {
+      "$ref": "#/$defs/PatternSupport"
+    },
+    "topology": {
+      "$ref": "#/$defs/Graph"
+    },
+    "tradeoffs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tradeoffs",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "supports",
+    "requires",
+    "tradeoffs",
+    "failure_modes_tolerated",
+    "multi_region",
+    "regional_resilience",
+    "primary_region",
+    "secondary_region",
+    "secondary_region_assumed",
+    "topology",
+    "availability_model",
+    "scaling_model",
+    "data_strategy",
+    "failure_strategy",
+    "cost_assumptions",
+    "known_limitations"
+  ],
+  "title": "Candidate",
+  "type": "object"
+}

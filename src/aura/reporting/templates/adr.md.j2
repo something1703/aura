@@ -1,0 +1,22 @@
+# ADR-{{ "%04d"|format(number) }} — {{ title }}
+
+## Status
+
+Proposed
+
+## Context
+
+{{ context }}
+
+## Decision
+
+{{ decision }}
+
+## Consequences
+
+{% for consequence in consequences %}
+- {{ consequence }}
+{% endfor %}
+{% if not consequences %}
+- none identified
+{% endif %}

@@ -1,0 +1,30 @@
+{
+  "candidates": [
+    {
+      "candidate_id": "multi-region-warm-standby",
+      "eligibility": "ELIGIBLE",
+      "weighted_score": 77.5
+    },
+    {
+      "candidate_id": "multi-region-active-active",
+      "eligibility": "ELIGIBLE",
+      "weighted_score": 75.25
+    },
+    {
+      "candidate_id": "single-region-multi-az",
+      "eligibility": "INELIGIBLE",
+      "weighted_score": null
+    },
+    {
+      "candidate_id": "multi-region-active-passive",
+      "eligibility": "INELIGIBLE",
+      "weighted_score": null
+    },
+    {
+      "candidate_id": "event-driven-buffered",
+      "eligibility": "INELIGIBLE",
+      "weighted_score": null
+    }
+  ],
+  "recommendation": "multi-region-warm-standby"
+}

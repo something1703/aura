@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+artifacts/
+.DS_Store
+*.tfstate
+*.tfstate.*
+.terraform/
+tfplan
+tfplan.json

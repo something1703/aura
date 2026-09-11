@@ -1,0 +1,180 @@
+# AURA Architecture Report — {{ ctx.workload.application.name }}
+
+> Generated {{ ctx.generated_at }} by AURA {{ aura_version }}. Modelled evidence only — see Open Questions for what has not been tested or measured.
+
+## 1. Executive Recommendation
+
+{% if ctx.recommendation and ctx.recommended_candidate -%}
+**Recommendation: {{ ctx.recommended_candidate.name }}**
+
+| | |
+|---|---|
+| Weighted score | {{ ctx.recommendation.weighted_score }}/100 |
+| Confidence | {{ ctx.recommendation.confidence }} |
+| Primary region | {{ ctx.recommended_candidate.primary_region }} |
+| Secondary region | {{ ctx.recommended_candidate.secondary_region or "none" }}{% if ctx.recommended_candidate.secondary_region_assumed %} (assumed){% endif %} |
+
+{{ ctx.recommended_candidate.description }}
+{% else -%}
+**No eligible candidate.** Every generated candidate failed at least one mandatory constraint — see Section 4.
+{% endif %}
+
+## 2. Requirements
+
+| Requirement | Value | Source | Confidence |
+|---|---|---|---|
+| Availability target | {{ ctx.normalized.availability_target.value }}% | {{ ctx.normalized.availability_target.source }} | {{ ctx.normalized.availability_target.confidence }} |
+| RTO | {{ ctx.normalized.rto_seconds.value }}s | {{ ctx.normalized.rto_seconds.source }} | {{ ctx.normalized.rto_seconds.confidence }} |
+| RPO | {{ ctx.normalized.rpo_seconds.value }}s | {{ ctx.normalized.rpo_seconds.source }} | {{ ctx.normalized.rpo_seconds.confidence }} |
+| Average RPS | {{ ctx.normalized.average_rps.value }} | {{ ctx.normalized.average_rps.source }} | {{ ctx.normalized.average_rps.confidence }} |
+| Peak RPS | {{ ctx.normalized.peak_rps.value }} | {{ ctx.normalized.peak_rps.source }} | {{ ctx.normalized.peak_rps.confidence }} |
+| Monthly budget | ${{ "%.2f"|format(ctx.normalized.monthly_budget_usd.value) }} ({{ "hard" if ctx.normalized.budget_hard_limit else "preferred" }}) | {{ ctx.normalized.monthly_budget_usd.source }} | {{ ctx.normalized.monthly_budget_usd.confidence }} |
+| Regional disaster recovery required | {{ ctx.normalized.regional_disaster_required.value }} | {{ ctx.normalized.regional_disaster_required.source }} | {{ ctx.normalized.regional_disaster_required.confidence }} |
+| Primary region(s) | {{ ctx.normalized.primary_regions | join(", ") }} | user | 1.0 |
+| Consistency | {% for domain, mode in ctx.normalized.consistency.items() %}{{ domain }}={{ mode.value }}{{ ", " if not loop.last }}{% endfor %} | user | 1.0 |
+
+Overall requirements confidence: **{{ ctx.normalized.confidence }}**
+
+{% if ctx.normalized.conflicts %}
+### Detected conflicts
+
+{% for conflict in ctx.normalized.conflicts %}
+- **[{{ conflict.severity.value|upper }}] {{ conflict.id }}** — {{ conflict.statement }}
+{% endfor %}
+{% endif %}
+
+## 3. Assumptions
+
+{% for assumption in ctx.workload.assumptions %}
+- **{{ assumption.id }}** (confidence {{ assumption.confidence }}): {{ assumption.statement }}
+{% endfor %}
+{% if ctx.recommended_candidate and ctx.recommended_candidate.secondary_region_assumed %}
+- **secondary-region-choice**: secondary region `{{ ctx.recommended_candidate.secondary_region }}` was assumed from a conventional AWS DR pairing; the workload declared only one primary region.
+{% endif %}
+{% if not ctx.workload.assumptions and not (ctx.recommended_candidate and ctx.recommended_candidate.secondary_region_assumed) %}
+- none declared
+{% endif %}
+
+## 4. Candidate Comparison
+
+| Candidate | Eligibility | Score | Confidence | Blast radius | AZ survives | Region survives |
+|---|---|---|---|---|---|---|
+{% for score in ctx.scores -%}
+| {{ score.candidate_id }} | {{ score.eligibility.value }} | {{ score.weighted_score if score.weighted_score is not none else "—" }} | {{ score.confidence }} | {{ score.failure_report.worst_blast_radius.value }} | {{ score.failure_report.survives_az_failure }} | {{ score.failure_report.survives_region_failure }} |
+{% endfor %}
+
+### Scoring breakdown — {{ ctx.recommendation.candidate_id if ctx.recommendation else "n/a" }}
+
+{% if ctx.recommendation %}
+| Dimension | Score (0-100) | Weight | Evidence |
+|---|---|---|---|
+{% for d in ctx.recommendation.dimension_scores -%}
+| {{ d.dimension.value }} | {{ d.value }} | {{ "%.1f"|format(d.weight) }}% | {{ d.evidence | join("; ") }} |
+{% endfor %}
+{% else %}
+No dimension scores: no candidate was selected.
+{% endif %}
+
+### Rejected candidates
+
+{% for score in ctx.rejected if score.eligibility.value == "INELIGIBLE" %}
+**{{ score.candidate_id }}**
+{% for reason in score.ineligibility_reasons %}
+- {{ reason }}
+{% endfor %}
+
+{% endfor %}
+
+## 5. Selected Architecture
+
+{% if ctx.recommended_candidate %}
+- Availability model: {{ ctx.recommended_candidate.availability_model }}
+- Scaling model: {{ ctx.recommended_candidate.scaling_model }}
+- Data strategy: {{ ctx.recommended_candidate.data_strategy }}
+- Failure strategy: {{ ctx.recommended_candidate.failure_strategy }}
+
+```mermaid
+{{ diagram }}
+```
+
+Known limitations:
+{% for limitation in ctx.recommended_candidate.known_limitations %}
+- {{ limitation }}
+{% endfor %}
+{% if not ctx.recommended_candidate.known_limitations %}
+- none declared
+{% endif %}
+{% else %}
+No architecture was selected.
+{% endif %}
+
+## 6. Failure Analysis
+
+{% if ctx.recommendation %}
+| Scenario | Blast radius | RTO status | RPO status | Expected recovery | Recovery action |
+|---|---|---|---|---|---|
+{% for s in ctx.recommendation.failure_report.scenarios -%}
+| {{ s.event.type.value }} | {{ s.blast_radius.value }} | {{ s.rto_status.value }} | {{ s.rpo_status.value }} | {{ s.expected_recovery_seconds if s.expected_recovery_seconds is not none else "no recovery path" }}s | {{ s.recovery_action }} |
+{% endfor %}
+{% else %}
+No failure analysis: no candidate was selected.
+{% endif %}
+
+## 7. Cost Analysis
+
+{% if ctx.recommendation %}
+`average_load`/`peak_load` are realistic monthly bills; `sustained_peak`/`failure_mode` are
+hypothetical ceilings (peak RPS held for the entire month) used to bound worst-case exposure,
+not a forecast.
+
+| Scenario | Total monthly (USD) | Confidence |
+|---|---|---|
+{% for scenario_key, estimate in ctx.recommendation.cost_estimates.items() -%}
+| {{ scenario_key }} | ${{ "%.2f"|format(estimate.total_monthly_usd) }} | {{ estimate.confidence.value }} |
+{% endfor %}
+
+Peak-load line items:
+
+| Service | Quantity | Unit | Monthly (USD) | Assumption |
+|---|---|---|---|---|
+{% for item in ctx.recommendation.cost_estimates["peak_load"].line_items -%}
+| {{ item.service }} | {{ item.quantity }} | {{ item.unit }} | ${{ "%.2f"|format(item.monthly_cost_usd) }} | {{ item.assumption }} |
+{% endfor %}
+{% else %}
+No cost analysis: no candidate was selected.
+{% endif %}
+
+## 8. Security & Operations Review
+
+{% if ctx.recommendation %}
+| Rule | Status | Evidence |
+|---|---|---|
+{% for r in ctx.recommendation.rule_results if r.rule_id in ["security.boundary", "operations.complexity", "deployment.rollback", "capacity.burst_ratio"] -%}
+| {{ r.rule_id }} | {{ r.status.value }} | {{ r.evidence }} |
+{% endfor %}
+{% endif %}
+
+## 9. Risks
+
+{% for score in ctx.rejected if score.eligibility.value == "INELIGIBLE" %}
+- **{{ score.candidate_id }}** is ineligible: {{ score.ineligibility_reasons | join("; ") }}
+{% endfor %}
+{% if ctx.recommendation and ctx.recommendation.confidence < 0.6 %}
+- Overall recommendation confidence is {{ ctx.recommendation.confidence }} — treat sizing and cost figures as directional, not final.
+{% endif %}
+
+## 10. Architecture Decision Records
+
+Generated separately via `aura adr` — one ADR each for compute model, data model, region strategy, deployment strategy, scaling strategy, and recovery strategy.
+
+## 11. Open Questions
+
+{% for conflict in ctx.normalized.conflicts %}
+- {{ conflict.statement }}
+{% endfor %}
+{% for assumption in ctx.workload.assumptions if assumption.confidence < 0.8 %}
+- Assumption `{{ assumption.id }}` has confidence {{ assumption.confidence }} and should be validated: {{ assumption.statement }}
+{% endfor %}
+{% if not ctx.normalized.conflicts and not (ctx.workload.assumptions | selectattr("confidence", "lt", 0.8) | list) %}
+- none outstanding
+{% endif %}

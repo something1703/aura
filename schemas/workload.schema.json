@@ -1,0 +1,335 @@
+{
+  "$defs": {
+    "Application": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "stateful": {
+          "default": false,
+          "title": "Stateful",
+          "type": "boolean"
+        },
+        "type": {
+          "$ref": "#/$defs/ApplicationType",
+          "default": "generic"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Application",
+      "type": "object"
+    },
+    "ApplicationType": {
+      "enum": [
+        "ecommerce",
+        "fintech",
+        "media_streaming",
+        "saas",
+        "internal_tool",
+        "data_platform",
+        "generic"
+      ],
+      "title": "ApplicationType",
+      "type": "string"
+    },
+    "Assumption": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "statement",
+        "confidence"
+      ],
+      "title": "Assumption",
+      "type": "object"
+    },
+    "Availability": {
+      "additionalProperties": false,
+      "properties": {
+        "multi_az_required": {
+          "default": false,
+          "title": "Multi Az Required",
+          "type": "boolean"
+        },
+        "target": {
+          "gt": 0,
+          "le": 100,
+          "title": "Target",
+          "type": "number"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "title": "Availability",
+      "type": "object"
+    },
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "hard_limit": {
+          "default": false,
+          "title": "Hard Limit",
+          "type": "boolean"
+        },
+        "monthly_usd": {
+          "gt": 0,
+          "title": "Monthly Usd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "monthly_usd"
+      ],
+      "title": "Budget",
+      "type": "object"
+    },
+    "Compliance": {
+      "additionalProperties": false,
+      "properties": {
+        "frameworks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Frameworks",
+          "type": "array"
+        }
+      },
+      "title": "Compliance",
+      "type": "object"
+    },
+    "ConsistencyMode": {
+      "enum": [
+        "strong",
+        "eventual"
+      ],
+      "title": "ConsistencyMode",
+      "type": "string"
+    },
+    "DataClassification": {
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ],
+      "title": "DataClassification",
+      "type": "string"
+    },
+    "Deployment": {
+      "additionalProperties": false,
+      "properties": {
+        "downtime_allowed": {
+          "default": true,
+          "title": "Downtime Allowed",
+          "type": "boolean"
+        },
+        "frequency_per_day": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Frequency Per Day",
+          "type": "number"
+        },
+        "rollback_target_minutes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rollback Target Minutes"
+        }
+      },
+      "title": "Deployment",
+      "type": "object"
+    },
+    "Geography": {
+      "additionalProperties": false,
+      "properties": {
+        "primary_regions": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Primary Regions",
+          "type": "array"
+        },
+        "user_regions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "User Regions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "primary_regions"
+      ],
+      "title": "Geography",
+      "type": "object"
+    },
+    "Recovery": {
+      "additionalProperties": false,
+      "properties": {
+        "regional_disaster_required": {
+          "default": false,
+          "title": "Regional Disaster Required",
+          "type": "boolean"
+        },
+        "rpo_minutes": {
+          "ge": 0,
+          "title": "Rpo Minutes",
+          "type": "number"
+        },
+        "rto_minutes": {
+          "ge": 0,
+          "title": "Rto Minutes",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rto_minutes",
+        "rpo_minutes"
+      ],
+      "title": "Recovery",
+      "type": "object"
+    },
+    "Security": {
+      "additionalProperties": false,
+      "properties": {
+        "data_classification": {
+          "$ref": "#/$defs/DataClassification",
+          "default": "internal"
+        },
+        "encryption_at_rest": {
+          "default": true,
+          "title": "Encryption At Rest",
+          "type": "boolean"
+        },
+        "encryption_in_transit": {
+          "default": true,
+          "title": "Encryption In Transit",
+          "type": "boolean"
+        },
+        "internet_facing": {
+          "default": false,
+          "title": "Internet Facing",
+          "type": "boolean"
+        }
+      },
+      "title": "Security",
+      "type": "object"
+    },
+    "Traffic": {
+      "additionalProperties": false,
+      "properties": {
+        "average_rps": {
+          "exclusiveMinimum": 0,
+          "title": "Average Rps",
+          "type": "number"
+        },
+        "growth_percent_per_month": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Growth Percent Per Month",
+          "type": "number"
+        },
+        "peak_duration_minutes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Peak Duration Minutes",
+          "type": "number"
+        },
+        "peak_rps": {
+          "exclusiveMinimum": 0,
+          "title": "Peak Rps",
+          "type": "number"
+        }
+      },
+      "required": [
+        "average_rps",
+        "peak_rps"
+      ],
+      "title": "Traffic",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "application": {
+      "$ref": "#/$defs/Application"
+    },
+    "assumptions": {
+      "items": {
+        "$ref": "#/$defs/Assumption"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    },
+    "availability": {
+      "$ref": "#/$defs/Availability"
+    },
+    "budget": {
+      "$ref": "#/$defs/Budget"
+    },
+    "compliance": {
+      "$ref": "#/$defs/Compliance"
+    },
+    "consistency": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ConsistencyMode"
+      },
+      "title": "Consistency",
+      "type": "object"
+    },
+    "deployment": {
+      "$ref": "#/$defs/Deployment"
+    },
+    "geography": {
+      "$ref": "#/$defs/Geography"
+    },
+    "recovery": {
+      "$ref": "#/$defs/Recovery"
+    },
+    "security": {
+      "$ref": "#/$defs/Security"
+    },
+    "traffic": {
+      "$ref": "#/$defs/Traffic"
+    }
+  },
+  "required": [
+    "application",
+    "traffic",
+    "availability",
+    "recovery",
+    "geography",
+    "budget"
+  ],
+  "title": "Workload",
+  "type": "object"
+}
