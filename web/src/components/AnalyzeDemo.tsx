@@ -9,6 +9,7 @@ import {
   type CandidateScore,
 } from "@/lib/api";
 import { Badge } from "./Badge";
+import { BreakEverything } from "./BreakEverything";
 import { MermaidDiagram } from "./MermaidDiagram";
 import { ReportMarkdown } from "./ReportMarkdown";
 
@@ -126,6 +127,13 @@ export function AnalyzeDemo() {
                 </div>
                 <StrategyCard candidate={selectedCandidate} />
               </div>
+
+              <h3 className="mt-9 text-lg font-semibold text-zinc-900">Break everything</h3>
+              <BreakEverything
+                key={selectedCandidate.id}
+                candidateName={selectedCandidate.name}
+                report={selectedScore.failure_report}
+              />
 
               <h3 className="mt-9 text-lg font-semibold text-zinc-900">Scoring breakdown</h3>
               <ScoringTable score={selectedScore} />
