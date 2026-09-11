@@ -9,7 +9,8 @@ when it FAILs (docs/SCORING_ENGINE.md); other rules only influence the score.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -137,7 +138,7 @@ def rpo_rule(
         observed=observed,
         required=required,
         evidence=f"AZ failure expected data loss window: {observed}s (database replication: "
-                 f"{candidate.topology.component('database').replication or 'synchronous multi-AZ'}).",
+        f"{candidate.topology.component('database').replication or 'synchronous multi-AZ'}).",
         mandatory=True,
     )
 
@@ -230,12 +231,12 @@ def security_boundary_rule(
         severity=_severity_for(status, Severity.CRITICAL),
         observed=observed,
         required=(
-            f"encryption at rest and in transit for internet-facing "
-            f"{normalized.data_classification.value} data" if needs_encryption else "not required"
+            f"encryption at rest and in transit for internet-facing {normalized.data_classification.value} data"
+            if needs_encryption
+            else "not required"
         ),
         evidence=(
-            "internet-facing + "
-            f"{normalized.data_classification.value} data requires full encryption."
+            f"internet-facing + {normalized.data_classification.value} data requires full encryption."
             if needs_encryption
             else "data classification does not mandate encryption for this workload."
         ),
@@ -284,9 +285,7 @@ def operational_complexity_rule(
     )
 
 
-RuleFunc = Callable[
-    [Candidate, NormalizedRequirements, CandidateFailureReport, dict[str, CostEstimate]], RuleResult
-]
+RuleFunc = Callable[[Candidate, NormalizedRequirements, CandidateFailureReport, dict[str, CostEstimate]], RuleResult]
 
 RULES: list[RuleFunc] = [
     availability_rule,

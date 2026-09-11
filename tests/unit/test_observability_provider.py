@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,8 +15,8 @@ def fake_provider() -> Boto3ObservabilityProvider:
     cloudwatch = MagicMock()
     cloudwatch.get_metric_statistics.return_value = {
         "Datapoints": [
-            {"Timestamp": datetime(2026, 1, 1, 12, 1, tzinfo=timezone.utc), "Average": 5.0, "Unit": "Seconds"},
-            {"Timestamp": datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc), "Average": 3.0, "Unit": "Seconds"},
+            {"Timestamp": datetime(2026, 1, 1, 12, 1, tzinfo=UTC), "Average": 5.0, "Unit": "Seconds"},
+            {"Timestamp": datetime(2026, 1, 1, 12, 0, tzinfo=UTC), "Average": 3.0, "Unit": "Seconds"},
         ]
     }
 
@@ -55,9 +55,7 @@ def test_get_metric_passes_correct_dimensions(fake_provider):
     )
     call_kwargs = cloudwatch.get_metric_statistics.call_args.kwargs
     assert call_kwargs["Namespace"] == "AWS/ApplicationELB"
-    assert call_kwargs["Dimensions"] == [
-        {"Name": "TargetGroup", "Value": "targetgroup/aura-demo-primary-tg/abc"}
-    ]
+    assert call_kwargs["Dimensions"] == [{"Name": "TargetGroup", "Value": "targetgroup/aura-demo-primary-tg/abc"}]
 
 
 def test_latest_is_none_with_no_datapoints():

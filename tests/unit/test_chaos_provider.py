@@ -55,9 +55,7 @@ def test_deregister_one_target_targets_first_healthy_target():
     result = provider.deregister_one_target(target_group_arn="arn:tg", region="ap-south-1")
 
     assert result.experiment == "remove-healthy-target"
-    elbv2.deregister_targets.assert_called_once_with(
-        TargetGroupArn="arn:tg", Targets=[{"Id": "10.0.1.5", "Port": 80}]
-    )
+    elbv2.deregister_targets.assert_called_once_with(TargetGroupArn="arn:tg", Targets=[{"Id": "10.0.1.5", "Port": 80}])
 
 
 def test_deregister_one_target_raises_when_no_targets():
@@ -76,9 +74,7 @@ def test_generate_synthetic_traffic_counts_successes():
     fake_response.__exit__ = MagicMock(return_value=False)
 
     with patch("aura.providers.chaos.urllib.request.urlopen", return_value=fake_response):
-        result = generate_synthetic_traffic(
-            "http://example.invalid/", duration_seconds=0.25, requests_per_second=10
-        )
+        result = generate_synthetic_traffic("http://example.invalid/", duration_seconds=0.25, requests_per_second=10)
 
     assert result.requests_sent >= 1
     assert result.status_counts.get("200", 0) >= 1
@@ -92,9 +88,7 @@ def test_generate_synthetic_traffic_counts_connection_errors():
         "aura.providers.chaos.urllib.request.urlopen",
         side_effect=urllib.error.URLError("connection refused"),
     ):
-        result = generate_synthetic_traffic(
-            "http://example.invalid/", duration_seconds=0.2, requests_per_second=10
-        )
+        result = generate_synthetic_traffic("http://example.invalid/", duration_seconds=0.2, requests_per_second=10)
 
     assert result.error_count >= 1
     assert result.status_counts == {}

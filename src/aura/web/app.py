@@ -76,9 +76,7 @@ def analyze(request: AnalyzeRequest) -> JSONResponse:
     try:
         workload = Workload.model_validate(document)
     except ValidationError as exc:
-        details = [
-            "{}: {}".format(".".join(str(p) for p in e["loc"]), e["msg"]) for e in exc.errors()
-        ]
+        details = ["{}: {}".format(".".join(str(p) for p in e["loc"]), e["msg"]) for e in exc.errors()]
         return _error_response(422, f"workload failed validation ({len(details)} issue(s))", details)
 
     try:
@@ -96,9 +94,7 @@ def analyze(request: AnalyzeRequest) -> JSONResponse:
     payload: dict[str, Any] = {
         "workload": workload.model_dump(mode="json"),
         "normalized": normalized.model_dump(mode="json"),
-        "candidates": [
-            {**c.model_dump(mode="json"), "diagram": to_mermaid(c.topology)} for c in candidates
-        ],
+        "candidates": [{**c.model_dump(mode="json"), "diagram": to_mermaid(c.topology)} for c in candidates],
         "scores": [s.model_dump(mode="json") for s in scores],
         "recommendation_id": recommendation.candidate_id if recommendation else None,
         "report_markdown": report_markdown,

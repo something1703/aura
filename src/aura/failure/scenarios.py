@@ -25,103 +25,147 @@ class BusinessCapability(BaseModel):
 _CAPABILITIES: dict[str, list[BusinessCapability]] = {
     "ecommerce": [
         BusinessCapability(
-            id="browsing", name="Product browsing & search", core=False,
+            id="browsing",
+            name="Product browsing & search",
+            core=False,
             depends_on=["cdn", "load-balancer", "compute", "cache"],
         ),
         BusinessCapability(
-            id="checkout", name="Checkout & order placement", core=True,
+            id="checkout",
+            name="Checkout & order placement",
+            core=True,
             depends_on=["load-balancer", "compute", "database", "queue"],
         ),
         BusinessCapability(
-            id="payments", name="Payment processing", core=True,
+            id="payments",
+            name="Payment processing",
+            core=True,
             depends_on=["load-balancer", "compute", "database"],
         ),
         BusinessCapability(
-            id="fulfillment-notifications", name="Order & fulfillment notifications", core=False,
+            id="fulfillment-notifications",
+            name="Order & fulfillment notifications",
+            core=False,
             depends_on=["queue", "compute"],
         ),
     ],
     "fintech": [
         BusinessCapability(
-            id="account-access", name="Account login & balance access", core=False,
+            id="account-access",
+            name="Account login & balance access",
+            core=False,
             depends_on=["load-balancer", "compute", "cache"],
         ),
         BusinessCapability(
-            id="transaction-processing", name="Transaction & transfer processing", core=True,
+            id="transaction-processing",
+            name="Transaction & transfer processing",
+            core=True,
             depends_on=["load-balancer", "compute", "database"],
         ),
         BusinessCapability(
-            id="statements-reporting", name="Statements & reporting", core=False,
+            id="statements-reporting",
+            name="Statements & reporting",
+            core=False,
             depends_on=["compute", "database"],
         ),
         BusinessCapability(
-            id="fraud-compliance", name="Fraud & compliance checks", core=True,
+            id="fraud-compliance",
+            name="Fraud & compliance checks",
+            core=True,
             depends_on=["compute", "database", "queue"],
         ),
     ],
     "media_streaming": [
         BusinessCapability(
-            id="content-delivery", name="Content delivery & playback start", core=True,
+            id="content-delivery",
+            name="Content delivery & playback start",
+            core=True,
             depends_on=["cdn", "load-balancer", "compute", "cache"],
         ),
         BusinessCapability(
-            id="playback-session", name="Playback session & entitlement", core=True,
+            id="playback-session",
+            name="Playback session & entitlement",
+            core=True,
             depends_on=["load-balancer", "compute", "database"],
         ),
         BusinessCapability(
-            id="catalog-search", name="Catalog & search", core=False,
+            id="catalog-search",
+            name="Catalog & search",
+            core=False,
             depends_on=["compute", "cache", "database"],
         ),
         BusinessCapability(
-            id="recommendations", name="Recommendations", core=False,
+            id="recommendations",
+            name="Recommendations",
+            core=False,
             depends_on=["compute", "database"],
         ),
     ],
     "saas": [
         BusinessCapability(
-            id="application-access", name="Application login & dashboard", core=False,
+            id="application-access",
+            name="Application login & dashboard",
+            core=False,
             depends_on=["load-balancer", "compute", "cache"],
         ),
         BusinessCapability(
-            id="core-workflow", name="Core product workflow", core=True,
+            id="core-workflow",
+            name="Core product workflow",
+            core=True,
             depends_on=["load-balancer", "compute", "database"],
         ),
         BusinessCapability(
-            id="background-processing", name="Background/async processing", core=False,
+            id="background-processing",
+            name="Background/async processing",
+            core=False,
             depends_on=["queue", "compute"],
         ),
         BusinessCapability(
-            id="reporting-analytics", name="Reporting & analytics", core=False,
+            id="reporting-analytics",
+            name="Reporting & analytics",
+            core=False,
             depends_on=["compute", "database"],
         ),
     ],
     "internal_tool": [
         BusinessCapability(
-            id="core-workflow", name="Core internal workflow", core=True,
+            id="core-workflow",
+            name="Core internal workflow",
+            core=True,
             depends_on=["load-balancer", "compute", "database"],
         ),
         BusinessCapability(
-            id="reporting", name="Reporting", core=False,
+            id="reporting",
+            name="Reporting",
+            core=False,
             depends_on=["compute", "database"],
         ),
     ],
     "data_platform": [
         BusinessCapability(
-            id="ingestion", name="Data ingestion", core=True,
+            id="ingestion",
+            name="Data ingestion",
+            core=True,
             depends_on=["queue", "compute"],
         ),
         BusinessCapability(
-            id="processing-pipeline", name="Processing pipeline", core=True,
+            id="processing-pipeline",
+            name="Processing pipeline",
+            core=True,
             depends_on=["compute", "database"],
         ),
         BusinessCapability(
-            id="query-serving", name="Query serving", core=False,
+            id="query-serving",
+            name="Query serving",
+            core=False,
             depends_on=["compute", "database", "cache"],
         ),
     ],
     "generic": [
         BusinessCapability(
-            id="core-service", name="Core service", core=True,
+            id="core-service",
+            name="Core service",
+            core=True,
             depends_on=["load-balancer", "compute", "database"],
         ),
     ],
@@ -145,7 +189,6 @@ def build_failure_events(candidate: Candidate) -> list[FailureEvent]:
     """Build the eight initial scenarios (AGENT_FAILURE.md), sized to this candidate."""
 
     compute = candidate.topology.component("compute")
-    database = candidate.topology.component("database")
     primary_az = sorted(compute.instances_in(region=candidate.primary_region), key=lambda i: i.az)[0].az
 
     events = [

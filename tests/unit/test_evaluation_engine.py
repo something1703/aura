@@ -97,9 +97,7 @@ def test_custom_weights_are_applied(workload_document):
     candidate = candidates[0]
 
     default_score = evaluate_candidate(candidate, normalized)
-    security_heavy_score = evaluate_candidate(
-        candidate, normalized, weights={ScoringDimension.SECURITY: 90}
-    )
+    security_heavy_score = evaluate_candidate(candidate, normalized, weights={ScoringDimension.SECURITY: 90})
     default_security_weight = next(
         d.weight for d in default_score.dimension_scores if d.dimension == ScoringDimension.SECURITY
     )

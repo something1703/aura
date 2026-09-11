@@ -35,8 +35,6 @@ def load_workload_document(path: str | Path) -> dict:
     if document is None:
         raise WorkloadLoadError(f"workload file is empty: {file_path}")
     if not isinstance(document, dict):
-        raise WorkloadLoadError(
-            f"workload file must contain a YAML mapping at the top level: {file_path}"
-        )
+        raise WorkloadLoadError(f"workload file must contain a YAML mapping at the top level: {file_path}")
 
     return document

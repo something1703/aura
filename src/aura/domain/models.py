@@ -67,12 +67,9 @@ class Traffic(AuraBaseModel):
     growth_percent_per_month: float = Field(default=0, ge=0)
 
     @model_validator(mode="after")
-    def _peak_at_least_average(self) -> "Traffic":
+    def _peak_at_least_average(self) -> Traffic:
         if self.peak_rps < self.average_rps:
-            raise ValueError(
-                f"traffic.peak_rps ({self.peak_rps}) must be >= "
-                f"traffic.average_rps ({self.average_rps})"
-            )
+            raise ValueError(f"traffic.peak_rps ({self.peak_rps}) must be >= traffic.average_rps ({self.average_rps})")
         return self
 
 
@@ -138,11 +135,7 @@ class Workload(AuraBaseModel):
     def _validate_consistency_modes(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
-        unknown = {
-            domain: mode
-            for domain, mode in value.items()
-            if mode not in {m.value for m in ConsistencyMode}
-        }
+        unknown = {domain: mode for domain, mode in value.items() if mode not in {m.value for m in ConsistencyMode}}
         if unknown:
             raise ValueError(f"unknown consistency mode(s): {unknown}")
         return value

@@ -37,8 +37,12 @@ _SCENARIO_PENALTY = {RuleStatus.PASS: 0, RuleStatus.WARN: 5, RuleStatus.FAIL: 15
 _BLAST_RADIUS_PENALTY = {"LOW": 0, "MEDIUM": 5, "HIGH": 10, "CRITICAL": 20}
 _COMPLEXITY_TAGS = {"operational_complexity", "data_consistency_complexity"}
 _MODERATE_COMPLEXITY_TAGS = {
-    "eventual_consistency", "added_processing_latency", "secondary_region_underutilized",
-    "moderate_idle_cost", "highest_cost", "higher_cost",
+    "eventual_consistency",
+    "added_processing_latency",
+    "secondary_region_underutilized",
+    "moderate_idle_cost",
+    "highest_cost",
+    "higher_cost",
 }
 
 
@@ -83,7 +87,9 @@ def _scalability(
     return DimensionScore(dimension=ScoringDimension.SCALABILITY, value=_clamp(score), weight=0, evidence=evidence)
 
 
-def _security(candidate: Candidate, normalized: NormalizedRequirements, rule_results: list[RuleResult]) -> DimensionScore:
+def _security(
+    candidate: Candidate, normalized: NormalizedRequirements, rule_results: list[RuleResult]
+) -> DimensionScore:
     boundary = _rule(rule_results, "security.boundary")
     score = 100.0 if boundary.status == RuleStatus.PASS else 40.0
     score -= 3 * max(len(candidate.topology.regions) - 1, 0)

@@ -483,7 +483,11 @@ def observe(
 
     typer.echo(to_json(series.model_dump(mode="json")))
     if series.latest is None:
-        typer.secho("no datapoints in this window (metric may be inactive, or the window too short).", fg=typer.colors.YELLOW, err=True)
+        typer.secho(
+            "no datapoints in this window (metric may be inactive, or the window too short).",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
     else:
         typer.secho(f"latest: {series.latest}", fg=typer.colors.GREEN, err=True)
 
@@ -517,7 +521,11 @@ def chaos_terminate_task(
         return
 
     typer.echo(to_json(result.model_dump(mode="json")))
-    typer.secho("stopped. watch the service's task count to confirm the orchestrator replaces it.", fg=typer.colors.GREEN, err=True)
+    typer.secho(
+        "stopped. watch the service's task count to confirm the orchestrator replaces it.",
+        fg=typer.colors.GREEN,
+        err=True,
+    )
 
 
 @chaos_app.command("remove-target")

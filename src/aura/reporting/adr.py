@@ -42,9 +42,7 @@ def _scenario(ctx: ReportContext, event_type: FailureEventType):
 def _compute_adr(ctx: ReportContext, number: int) -> AdrSpec:
     candidate = ctx.recommended_candidate
     compute = candidate.topology.component("compute")
-    secondary_has_compute = bool(
-        candidate.secondary_region and compute.instances_in(region=candidate.secondary_region)
-    )
+    secondary_has_compute = bool(candidate.secondary_region and compute.instances_in(region=candidate.secondary_region))
     return AdrSpec(
         number=number,
         slug="compute-model",
@@ -81,9 +79,7 @@ def _data_model_adr(ctx: ReportContext, number: int) -> AdrSpec:
             f"{database.replication or 'synchronous in-region'} replication across "
             f"{len(database.regions)} region(s)."
         ),
-        consequences=[
-            limitation for limitation in candidate.known_limitations if "consist" in limitation.lower()
-        ]
+        consequences=[limitation for limitation in candidate.known_limitations if "consist" in limitation.lower()]
         or ["Consistency model matches the declared per-domain requirements; no conflicts identified."],
     )
 
@@ -99,9 +95,7 @@ def _region_strategy_adr(ctx: ReportContext, number: int) -> AdrSpec:
             f"Regional disaster recovery required: {ctx.normalized.regional_disaster_required.value}. "
             f"Declared user regions: {', '.join(ctx.normalized.user_regions) or 'none declared'}."
         ),
-        decision=(
-            f"{candidate.availability_model} Regional failure recovery: {region_scenario.recovery_action}"
-        ),
+        decision=(f"{candidate.availability_model} Regional failure recovery: {region_scenario.recovery_action}"),
         consequences=list(candidate.tradeoffs) or ["No significant region-strategy tradeoffs identified."],
     )
 
@@ -148,9 +142,7 @@ def _recovery_strategy_adr(ctx: ReportContext, number: int) -> AdrSpec:
         number=number,
         slug="recovery-strategy",
         title="Recovery Strategy",
-        context=(
-            f"RTO target {ctx.normalized.rto_seconds.value}s, RPO target {ctx.normalized.rpo_seconds.value}s."
-        ),
+        context=(f"RTO target {ctx.normalized.rto_seconds.value}s, RPO target {ctx.normalized.rpo_seconds.value}s."),
         decision=(
             f"AZ failure: {az_scenario.recovery_action} (expected {az_scenario.expected_recovery_seconds}s, "
             f"status {az_scenario.rto_status.value}). Region failure: {region_scenario.recovery_action} "

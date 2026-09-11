@@ -7,7 +7,7 @@ results — there is only one place that decides "what was selected and why."
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -46,12 +46,10 @@ def build_context(
     recommended_candidate = (
         next(c for c in candidates if c.id == recommendation.candidate_id) if recommendation else None
     )
-    rejected = [
-        s for s in scores if not recommendation or s.candidate_id != recommendation.candidate_id
-    ]
+    rejected = [s for s in scores if not recommendation or s.candidate_id != recommendation.candidate_id]
 
     return ReportContext(
-        generated_at=generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        generated_at=generated_at or datetime.now(UTC).isoformat(timespec="seconds"),
         workload=workload,
         normalized=normalized,
         candidates=candidates,

@@ -94,7 +94,17 @@ def fake_provider() -> Boto3AwsProvider:
     elasticache = MagicMock()
     _paginated(
         elasticache,
-        [{"CacheClusters": [{"CacheClusterId": "cache-1", "Engine": "redis", "PreferredAvailabilityZone": "ap-south-1a"}]}],
+        [
+            {
+                "CacheClusters": [
+                    {
+                        "CacheClusterId": "cache-1",
+                        "Engine": "redis",
+                        "PreferredAvailabilityZone": "ap-south-1a",
+                    }
+                ]
+            }
+        ],
     )
 
     ecs = MagicMock()
@@ -111,9 +121,7 @@ def fake_provider() -> Boto3AwsProvider:
         ]
     }
 
-    provider._boto3 = _FakeBoto3(
-        {"ec2": ec2, "rds": rds, "elbv2": elbv2, "elasticache": elasticache, "ecs": ecs}
-    )
+    provider._boto3 = _FakeBoto3({"ec2": ec2, "rds": rds, "elbv2": elbv2, "elasticache": elasticache, "ecs": ecs})
     return provider
 
 

@@ -13,7 +13,7 @@ acceptance test: "at least 1 rejected candidate with reasons").
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from aura.architecture.catalog import CATALOG
 from aura.architecture.patterns import PatternDefinition, PatternSupport
@@ -143,9 +143,7 @@ def _build_topology(
             pattern.secondary_az_count if pattern.secondary_az_count else 1,
         )
         db_replication = "sync" if is_active_active else "async"
-    components.append(
-        Component(id="database", kind="database", instances=db_instances, replication=db_replication)
-    )
+    components.append(Component(id="database", kind="database", instances=db_instances, replication=db_replication))
 
     cache_id: str | None = None
     if normalized.stateful:
@@ -211,7 +209,10 @@ def _scaling_model(normalized: NormalizedRequirements, is_event_driven: bool) ->
         f"~{normalized.growth_percent_per_month:.0f}%/month."
     )
     if is_event_driven:
-        text += " Ingestion is decoupled from processing through a durable queue to absorb bursts above provisioned capacity."
+        text += (
+            " Ingestion is decoupled from processing through a durable queue to absorb "
+            "bursts above provisioned capacity."
+        )
     return text
 
 
@@ -226,7 +227,9 @@ def _data_strategy(normalized: NormalizedRequirements, db_replication: str | Non
 
 
 def _failure_strategy(pattern: PatternDefinition) -> str:
-    tolerated = ", ".join(mode.value if hasattr(mode, "value") else str(mode) for mode in pattern.failure_modes_tolerated)
+    tolerated = ", ".join(
+        mode.value if hasattr(mode, "value") else str(mode) for mode in pattern.failure_modes_tolerated
+    )
     return f"{pattern.description} Explicitly modelled failure modes: {tolerated}."
 
 
@@ -240,7 +243,9 @@ def _cost_assumptions(pattern: PatternDefinition, topology: Graph) -> list[str]:
     return assumptions
 
 
-def _known_limitations(pattern: PatternDefinition, normalized: NormalizedRequirements, secondary: SecondaryRegion | None) -> list[str]:
+def _known_limitations(
+    pattern: PatternDefinition, normalized: NormalizedRequirements, secondary: SecondaryRegion | None
+) -> list[str]:
     limitations = list(pattern.tradeoffs)
     if secondary and secondary.assumed:
         limitations.append(

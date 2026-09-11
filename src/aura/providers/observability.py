@@ -13,7 +13,7 @@ optional, lazily-imported dependency, same as :mod:`aura.providers.aws`.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from pydantic import BaseModel, Field
@@ -77,7 +77,7 @@ class Boto3ObservabilityProvider:
         except Exception as exc:  # noqa: BLE001 - boundary to an external, untyped API
             raise AwsProviderError(f"could not create cloudwatch client for {region}: {exc}") from exc
 
-        end = datetime.now(timezone.utc)
+        end = datetime.now(UTC)
         start = end - timedelta(minutes=minutes)
         try:
             response = client.get_metric_statistics(

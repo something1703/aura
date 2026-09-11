@@ -52,8 +52,7 @@ class Component(BaseModel):
         return [
             instance
             for instance in self.instances
-            if (region is None or instance.region == region)
-            and (az is None or instance.az == az)
+            if (region is None or instance.region == region) and (az is None or instance.az == az)
         ]
 
     def is_dependency_critical(self, dependency_id: str) -> bool:

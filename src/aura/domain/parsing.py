@@ -12,9 +12,7 @@ from __future__ import annotations
 import re
 
 _PERCENT_RE = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*%?\s*$")
-_CURRENCY_RE = re.compile(
-    r"^\s*\$?\s*(-?\d[\d,]*(?:\.\d+)?)\s*([kKmM]?)\s*$"
-)
+_CURRENCY_RE = re.compile(r"^\s*\$?\s*(-?\d[\d,]*(?:\.\d+)?)\s*([kKmM]?)\s*$")
 _DURATION_RE = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*([a-zA-Z]*)\s*$")
 
 _DURATION_UNIT_SECONDS = {

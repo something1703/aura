@@ -15,9 +15,6 @@ def validate_workload(document: dict) -> Workload:
         return Workload.model_validate(document)
     except ValidationError as exc:
         details = [
-            "{}: {}".format(".".join(str(part) for part in error["loc"]), error["msg"])
-            for error in exc.errors()
+            "{}: {}".format(".".join(str(part) for part in error["loc"]), error["msg"]) for error in exc.errors()
         ]
-        raise WorkloadValidationError(
-            f"workload failed validation ({len(details)} issue(s))", details=details
-        ) from exc
+        raise WorkloadValidationError(f"workload failed validation ({len(details)} issue(s))", details=details) from exc

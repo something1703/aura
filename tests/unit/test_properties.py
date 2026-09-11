@@ -11,7 +11,6 @@ import copy
 
 from aura.architecture.generator import generate_candidates
 from aura.domain.enums import EligibilityStatus, RuleStatus, ScoringDimension
-from aura.domain.graph import Component, Instance
 from aura.domain.models import Workload
 from aura.evaluation.engine import evaluate_all
 from aura.evaluation.rules import availability_rule
@@ -110,9 +109,7 @@ def test_mandatory_rule_failure_always_blocks_eligibility(workload_document):
         candidates = generate_candidates(normalized)
         scores = evaluate_all(candidates, normalized)
         for score in scores:
-            has_mandatory_fail = any(
-                r.mandatory and r.status == RuleStatus.FAIL for r in score.rule_results
-            )
+            has_mandatory_fail = any(r.mandatory and r.status == RuleStatus.FAIL for r in score.rule_results)
             if has_mandatory_fail:
                 assert score.eligibility == EligibilityStatus.INELIGIBLE
                 assert score.weighted_score is None

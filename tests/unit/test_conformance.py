@@ -25,7 +25,10 @@ def test_matching_deployment_passes_all_checks(workload_document):
             ObservedResource(kind="compute", id="i-2", region="ap-south-1", az="ap-south-1b"),
             ObservedResource(kind="compute", id="i-3", region="ap-south-1", az="ap-south-1c"),
             ObservedResource(
-                kind="database", id="db-1", region="ap-south-1", az="ap-south-1a",
+                kind="database",
+                id="db-1",
+                region="ap-south-1",
+                az="ap-south-1a",
                 attributes={"multi_az": True, "storage_encrypted": True},
             ),
         ],
@@ -44,7 +47,10 @@ def test_fewer_observed_azs_fails_conformance(workload_document):
             ObservedResource(kind="compute", id="i-1", region="ap-south-1", az="ap-south-1a"),
             ObservedResource(kind="compute", id="i-2", region="ap-south-1", az="ap-south-1b"),
             ObservedResource(
-                kind="database", id="db-1", region="ap-south-1", az="ap-south-1a",
+                kind="database",
+                id="db-1",
+                region="ap-south-1",
+                az="ap-south-1a",
                 attributes={"multi_az": True, "storage_encrypted": True},
             ),
         ],
@@ -64,7 +70,10 @@ def test_unencrypted_database_fails_when_encryption_required(workload_document):
         resources=[
             ObservedResource(kind="compute", id="i-1", region="ap-south-1", az="ap-south-1a"),
             ObservedResource(
-                kind="database", id="db-1", region="ap-south-1", az="ap-south-1a",
+                kind="database",
+                id="db-1",
+                region="ap-south-1",
+                az="ap-south-1a",
                 attributes={"multi_az": True, "storage_encrypted": False},
             ),
         ],

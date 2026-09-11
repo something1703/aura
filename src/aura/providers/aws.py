@@ -97,16 +97,14 @@ class Boto3AwsProvider:
             paginator = client.get_paginator("list_tasks")
             for page in self._call(
                 "list_tasks",
-                lambda: list(paginator.paginate(cluster=cluster_arn, desiredStatus="RUNNING")),
+                lambda p=paginator, c=cluster_arn: list(p.paginate(cluster=c, desiredStatus="RUNNING")),
             ):
                 task_arns.extend(page.get("taskArns", []))
 
             if not task_arns:
                 continue
 
-            described = self._call(
-                "describe_tasks", client.describe_tasks, cluster=cluster_arn, tasks=task_arns
-            )
+            described = self._call("describe_tasks", client.describe_tasks, cluster=cluster_arn, tasks=task_arns)
             for task in described.get("tasks", []):
                 resources.append(
                     ObservedResource(

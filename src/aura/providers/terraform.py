@@ -35,9 +35,7 @@ def _collect_resources(module: dict[str, Any]) -> list[TerraformResourceChange]:
 def parse_terraform_plan(plan: dict[str, Any]) -> DesiredState:
     root_module = plan.get("planned_values", {}).get("root_module")
     if root_module is None:
-        raise TerraformPlanError(
-            "no planned_values.root_module found; expected `terraform show -json` output"
-        )
+        raise TerraformPlanError("no planned_values.root_module found; expected `terraform show -json` output")
     return DesiredState(resources=_collect_resources(root_module))
 
 

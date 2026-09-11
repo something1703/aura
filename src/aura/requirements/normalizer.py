@@ -213,9 +213,7 @@ def normalize(workload: Workload, raw_document: dict | None = None) -> Normalize
         ),
         growth_percent_per_month=workload.traffic.growth_percent_per_month,
         availability_target=requirement(workload.availability.target, "availability", "target"),
-        multi_az_required=requirement(
-            workload.availability.multi_az_required, "availability", "multi_az_required"
-        ),
+        multi_az_required=requirement(workload.availability.multi_az_required, "availability", "multi_az_required"),
         rto_seconds=requirement(workload.recovery.rto_minutes * 60, "recovery", "rto_minutes"),
         rpo_seconds=requirement(workload.recovery.rpo_minutes * 60, "recovery", "rpo_minutes"),
         regional_disaster_required=requirement(
@@ -235,9 +233,7 @@ def normalize(workload: Workload, raw_document: dict | None = None) -> Normalize
         ),
         budget_hard_limit=workload.budget.hard_limit,
         deployment_frequency_per_day=workload.deployment.frequency_per_day,
-        downtime_allowed=requirement(
-            workload.deployment.downtime_allowed, "deployment", "downtime_allowed"
-        ),
+        downtime_allowed=requirement(workload.deployment.downtime_allowed, "deployment", "downtime_allowed"),
         rollback_target_seconds=rollback_seconds,
         internet_facing=workload.security.internet_facing,
         data_classification=workload.security.data_classification,

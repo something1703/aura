@@ -161,7 +161,9 @@ def _build_result(
 
 def _simulate_instance_failure(candidate: Candidate, event: FailureEvent, normalized: NormalizedRequirements):
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Load balancer / orchestrator health checks",
         recovery_action="Automatic instance or task replacement by the compute orchestrator.",
         expected_recovery_seconds=_INSTANCE_REPLACEMENT_SECONDS,
@@ -174,9 +176,13 @@ def _simulate_az_failure(candidate: Candidate, event: FailureEvent, normalized: 
     database = candidate.topology.component("database")
     sync_replication = database is not None and database.replication in (None, "sync")
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Target group health checks and Multi-AZ database failover monitor",
-        recovery_action="Traffic drains to the healthy AZ's targets; the database fails over to its standby in another AZ.",
+        recovery_action=(
+            "Traffic drains to the healthy AZ's targets; the database fails over to its standby in another AZ."
+        ),
         expected_recovery_seconds=_MULTI_AZ_FAILOVER_SECONDS,
         expected_data_loss_seconds=0.0 if sync_replication else candidate.supports.rpo_max_seconds,
         failed_azs=frozenset({event.target_az}) if event.target_az else frozenset(),
@@ -188,7 +194,9 @@ def _simulate_database_failure(candidate: Candidate, event: FailureEvent, normal
     database = candidate.topology.component("database")
     single_instance = database is None or len(database.instances) <= 1
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Database automated failover monitor",
         recovery_action=(
             "No standby instance exists; the database must be restored from backup."
@@ -207,9 +215,13 @@ def _simulate_network_degradation(candidate: Candidate, event: FailureEvent, nor
     database = candidate.topology.component("database")
     async_replication = database is not None and database.replication == "async"
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Elevated latency/error-rate alarms on cross-AZ or cross-region links",
-        recovery_action="No topology change; degraded network conditions clear on their own or via provider mitigation.",
+        recovery_action=(
+            "No topology change; degraded network conditions clear on their own or via provider mitigation."
+        ),
         expected_recovery_seconds=0.0,
         expected_data_loss_seconds=candidate.supports.rpo_max_seconds if async_replication else None,
         confidence=0.5,
@@ -225,7 +237,9 @@ def _simulate_traffic_spike(candidate: Candidate, event: FailureEvent, normalize
     queue = candidate.topology.component("queue")
     if queue is not None:
         return _build_result(
-            candidate, event, normalized,
+            candidate,
+            event,
+            normalized,
             detection="Queue depth / backlog age alarms",
             recovery_action="The durable queue absorbs the burst; workers drain the backlog as autoscaling catches up.",
             expected_recovery_seconds=0.0,
@@ -233,7 +247,9 @@ def _simulate_traffic_spike(candidate: Candidate, event: FailureEvent, normalize
             confidence=0.7,
         )
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Autoscaling target-tracking alarms / elevated latency and error rate",
         recovery_action="Horizontal autoscale-out of the compute tier until capacity matches demand.",
         expected_recovery_seconds=_AUTOSCALE_REACTION_SECONDS,
@@ -252,7 +268,9 @@ def _simulate_bad_deployment(candidate: Candidate, event: FailureEvent, normaliz
     else:
         recovery_seconds = float(rollback.value)
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Deployment health checks / canary analysis",
         recovery_action="Automated rollback to the last known-good revision.",
         expected_recovery_seconds=recovery_seconds,
@@ -266,18 +284,27 @@ def _simulate_dependency_failure(candidate: Candidate, event: FailureEvent, norm
     cache = candidate.topology.component("cache")
     if cache is None:
         return _build_result(
-            candidate, event, normalized,
+            candidate,
+            event,
+            normalized,
             detection="Application-level dependency health checks",
-            recovery_action="Circuit breaker isolates the dependency; degraded-mode behavior is assumed but not modelled explicitly.",
+            recovery_action=(
+                "Circuit breaker isolates the dependency; degraded-mode behavior is assumed but "
+                "not modelled explicitly."
+            ),
             expected_recovery_seconds=None,
             expected_data_loss_seconds=None,
             confidence=0.4,
             notes=["no explicit non-critical dependency component modelled for this workload"],
         )
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Application-level dependency health checks / circuit breaker",
-        recovery_action="Circuit breaker isolates the cache; requests fall through to the database with degraded latency.",
+        recovery_action=(
+            "Circuit breaker isolates the cache; requests fall through to the database with degraded latency."
+        ),
         expected_recovery_seconds=0.0,
         expected_data_loss_seconds=None,
         failed_components=frozenset({cache.id}),
@@ -289,7 +316,9 @@ def _simulate_dependency_failure(candidate: Candidate, event: FailureEvent, norm
 def _simulate_region_failure(candidate: Candidate, event: FailureEvent, normalized: NormalizedRequirements):
     if not candidate.regional_resilience:
         return _build_result(
-            candidate, event, normalized,
+            candidate,
+            event,
+            normalized,
             detection="Regional health checks",
             recovery_action="No secondary region exists: there is no automated or manual recovery path.",
             expected_recovery_seconds=None,
@@ -310,7 +339,9 @@ def _simulate_region_failure(candidate: Candidate, event: FailureEvent, normaliz
         ),
     }.get(candidate.id, "Fail over to the secondary region.")
     return _build_result(
-        candidate, event, normalized,
+        candidate,
+        event,
+        normalized,
         detection="Regional health checks / global router failover",
         recovery_action=recovery_action,
         expected_recovery_seconds=candidate.supports.rto_max_seconds,
@@ -372,7 +403,5 @@ def simulate_candidate(candidate: Candidate, normalized: NormalizedRequirements)
     )
 
 
-def simulate_all(
-    candidates: list[Candidate], normalized: NormalizedRequirements
-) -> dict[str, CandidateFailureReport]:
+def simulate_all(candidates: list[Candidate], normalized: NormalizedRequirements) -> dict[str, CandidateFailureReport]:
     return {candidate.id: simulate_candidate(candidate, normalized) for candidate in candidates}

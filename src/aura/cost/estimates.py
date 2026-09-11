@@ -53,9 +53,7 @@ class _LoadWindow(BaseModel):
 def _load_windows(scenario: CostScenario, normalized: NormalizedRequirements) -> list[_LoadWindow]:
     average_rps = normalized.average_rps.value
     peak_rps = normalized.peak_rps.value
-    peak_hours = min(
-        max(normalized.peak_duration_seconds.value / 3600.0, 0.0) * 30, HOURS_PER_MONTH
-    )
+    peak_hours = min(max(normalized.peak_duration_seconds.value / 3600.0, 0.0) * 30, HOURS_PER_MONTH)
 
     if scenario == CostScenario.AVERAGE_LOAD:
         return [_LoadWindow(rps=average_rps, hours=HOURS_PER_MONTH, label="average load, full month")]
@@ -158,9 +156,7 @@ def _load_balancer_line_item(candidate: Candidate, windows: list[_LoadWindow]) -
     load_balancer = candidate.topology.component("load-balancer")
     region_count = len(load_balancer.regions)
     base_cost = region_count * LOAD_BALANCER_HOUR_USD * HOURS_PER_MONTH
-    lcu_cost = sum(
-        math.ceil(w.rps / RPS_PER_LCU) * LOAD_BALANCER_LCU_HOUR_USD * w.hours for w in windows
-    )
+    lcu_cost = sum(math.ceil(w.rps / RPS_PER_LCU) * LOAD_BALANCER_LCU_HOUR_USD * w.hours for w in windows)
     return CostLineItem(
         service="Load balancer",
         unit="LB-hour + LCU-hour",
@@ -232,9 +228,7 @@ def _cross_region_transfer_line_item(candidate: Candidate, windows: list[_LoadWi
         utilization=None,
         unit_price_usd=CROSS_REGION_TRANSFER_GB_USD,
         monthly_cost_usd=round(monthly_cost, 2),
-        assumption=(
-            f"replication traffic assumed at {CROSS_REGION_REPLICATION_FRACTION:.0%} of request volume"
-        ),
+        assumption=(f"replication traffic assumed at {CROSS_REGION_REPLICATION_FRACTION:.0%} of request volume"),
         confidence=CostConfidence.LOW,
     )
 
@@ -308,7 +302,4 @@ def estimate_candidate_cost(
 def estimate_candidate_all_scenarios(
     candidate: Candidate, normalized: NormalizedRequirements
 ) -> dict[str, CostEstimate]:
-    return {
-        scenario.value: estimate_candidate_cost(candidate, normalized, scenario)
-        for scenario in CostScenario
-    }
+    return {scenario.value: estimate_candidate_cost(candidate, normalized, scenario) for scenario in CostScenario}
