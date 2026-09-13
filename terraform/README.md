@@ -39,6 +39,17 @@ Both the compute and database modules also create CloudWatch alarms (unhealthy
 targets, 5xx rate, CPU, and — on the secondary database — replica lag): see
 "Observability" below.
 
+### Progressive delivery
+
+Every `aws_ecs_service` deploys with a circuit breaker
+(`deployment_circuit_breaker { enable = true, rollback = true }`) and
+`deployment_minimum_healthy_percent = 100` / `deployment_maximum_percent = 200`:
+new tasks must pass the ALB health check to count toward a rollout, full
+capacity keeps serving throughout, and if the new tasks never stabilize ECS
+automatically rolls the service back to the previous task definition —
+matching docs/IMPLEMENTATION_PHASES.md's "Health Validation -> Canary/Blue-Green
+-> Promote or Roll Back" without needing a separate CodeDeploy setup.
+
 ### Known limitations (deliberate, for a demo)
 
 - **No `global-router`/`cdn`.** AURA's topology includes a Route53-style

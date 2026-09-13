@@ -47,6 +47,24 @@ variable "memory" {
   default = 512
 }
 
+variable "enable_deployment_circuit_breaker" {
+  description = "Automatically roll back a deployment whose new tasks never stabilize (fail health checks / crash loop)."
+  type        = bool
+  default     = true
+}
+
+variable "deployment_minimum_healthy_percent" {
+  description = "Minimum percent of desired_count that must stay running/healthy during a deployment."
+  type        = number
+  default     = 100
+}
+
+variable "deployment_maximum_percent" {
+  description = "Maximum percent of desired_count ECS may run during a deployment (extra capacity for the new tasks before old ones are stopped)."
+  type        = number
+  default     = 200
+}
+
 variable "environment_variables" {
   description = "Container environment variables, e.g. { AURA_WEB_ORIGIN = \"https://aura.example.com\" }."
   type        = map(string)

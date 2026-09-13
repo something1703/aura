@@ -163,6 +163,26 @@ resource "aws_ecs_service" "this" {
   launch_type     = "FARGATE"
   tags            = var.tags
 
+  # Progressive delivery (docs/IMPLEMENTATION_PHASES.md Phase 3 CI/CD flow:
+  # "Health Validation -> Canary/Blue-Green -> AURA Runtime Validation ->
+  # Promote or Roll Back"). ECS's built-in circuit breaker is the AWS-native
+  # rolling-deployment version of that: new tasks must pass the ALB health
+  # check (health_check_path on the target group) to count toward the
+  # rollout; if they never stabilize, ECS automatically halts and rolls the
+  # service back to the previous task definition — no human has to notice
+  # first. min/max percent keep full capacity serving throughout the
+  # rollout instead of a hard cutover.
+  deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
+  deployment_maximum_percent         = var.deployment_maximum_percent
+
+  dynamic "deployment_circuit_breaker" {
+    for_each = var.enable_deployment_circuit_breaker ? [1] : []
+    content {
+      enable   = true
+      rollback = true
+    }
+  }
+
   network_configuration {
     subnets          = var.private_subnet_ids
     security_groups  = [aws_security_group.service.id]
