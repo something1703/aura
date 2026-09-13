@@ -283,7 +283,9 @@ without sufficient business benefit for the supplied constraints.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,aws]"   # [aws] (boto3) is needed to run the full test suite —
+                               # the Phase 2 provider tests mock the AWS calls but still
+                               # import boto3 itself
 
 aws sts get-caller-identity
 terraform version

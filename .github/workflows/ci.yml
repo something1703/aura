@@ -1,0 +1,142 @@
+name: CI
+
+# docs/IMPLEMENTATION_PHASES.md Phase 3 CI/CD flow:
+#   Pull Request -> Unit Tests -> Architecture Validation -> Terraform Plan
+#   -> AURA Plan Validation -> Human Approval -> Deploy -> ...
+# This workflow covers everything up to Terraform Plan. Nothing past that
+# point runs in CI: deploy/apply requires a human and real AWS credentials
+# that are not (and should not be, from a public student-project repo)
+# configured here by default. See the "terraform-plan" job below for what
+# turns on automatically if the repo owner later adds them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: Python tests, lint, format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # [aws] (boto3) is needed even though every AWS/chaos/observability
+      # test mocks the actual API calls — the provider classes still do a
+      # real `import boto3` in __init__ before the mock takes over.
+      - run: pip install -e ".[dev,aws]"
+      - run: ruff check src tests
+      - run: ruff format --check src tests
+      - run: python -m compileall src
+      - run: pytest -q -m "not aws"
+
+  architecture-gate:
+    name: AURA architecture gate
+    runs-on: ubuntu-latest
+    needs: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: aura validate config/flash-commerce.yaml
+      # Fails the build if no candidate is eligible, or the recommendation's
+      # confidence drops below the threshold (docs/IMPLEMENTATION_PHASES.md
+      # Iteration 9: "Block merge on mandatory architecture failures").
+      - run: aura gate config/flash-commerce.yaml --min-confidence 0.3
+
+  web:
+    name: Web UI lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    needs: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.web
+          push: false
+
+  terraform:
+    name: Terraform fmt/validate + security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive terraform
+      - name: terraform init/validate (each environment, no backend/AWS access)
+        run: |
+          set -euo pipefail
+          for env in terraform/environments/*/; do
+            echo "== $env =="
+            terraform -chdir="$env" init -backend=false -input=false
+            terraform -chdir="$env" validate
+          done
+      # Static analysis only — no AWS credentials, nothing deployed.
+      # docs/IMPLEMENTATION_PHASES.md Phase 3 "security policy checks".
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: terraform
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+
+  # Runs only once the repo owner adds AWS_ROLE_ARN as a repository secret
+  # (an IAM role trusted for GitHub's OIDC provider — no long-lived access
+  # keys). Until then this job is a no-op so CI never depends on real
+  # credentials existing. See terraform/README.md for the IAM trust policy.
+  terraform-plan:
+    name: Terraform plan (real AWS, opt-in)
+    runs-on: ubuntu-latest
+    needs: terraform
+    if: ${{ secrets.AWS_ROLE_ARN != '' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-south-1
+      - uses: hashicorp/setup-terraform@v3
+      - working-directory: terraform/environments/flash-commerce
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -json tfplan > tfplan.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: AURA plan validation
+        run: aura terraform inspect terraform/environments/flash-commerce/tfplan.json

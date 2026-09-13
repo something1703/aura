@@ -70,7 +70,7 @@ resource "aws_lb_target_group" "this" {
   target_type = "ip"
 
   health_check {
-    path                = "/"
+    path                = var.health_check_path
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 15
@@ -139,6 +139,9 @@ resource "aws_ecs_task_definition" "this" {
       portMappings = [
         { containerPort = var.container_port, protocol = "tcp" }
       ]
+      environment = [
+        for k, v in var.environment_variables : { name = k, value = v }
+      ]
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -172,4 +175,74 @@ resource "aws_ecs_service" "this" {
   }
 
   depends_on = [aws_lb_listener.http]
+}
+
+# CloudWatch alarms (docs/IMPLEMENTATION_PHASES.md Phase 3 observability
+# integration / runtime architecture validation). `aura observe` reads
+# these same metrics on demand; these alarms are the always-on version.
+
+resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
+  count               = var.enable_alarms ? 1 : 0
+  alarm_name          = "${var.name}-unhealthy-hosts"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "UnHealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 0
+  alarm_description   = "One or more targets behind ${var.name}'s ALB are unhealthy."
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    TargetGroup  = aws_lb_target_group.this.arn_suffix
+    LoadBalancer = aws_lb.this.arn_suffix
+  }
+
+  alarm_actions = var.alarm_actions
+  ok_actions    = var.alarm_actions
+  tags          = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "http_5xx" {
+  count               = var.enable_alarms ? 1 : 0
+  alarm_name          = "${var.name}-http-5xx"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "HTTPCode_Target_5XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 10
+  alarm_description   = "Elevated 5xx responses from ${var.name}'s targets."
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    LoadBalancer = aws_lb.this.arn_suffix
+  }
+
+  alarm_actions = var.alarm_actions
+  tags          = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
+  count               = var.enable_alarms ? 1 : 0
+  alarm_name          = "${var.name}-ecs-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 85
+  alarm_description   = "${var.name} ECS service sustained CPU > 85% — matches capacity.burst_ratio's WARN threshold assumption."
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.this.name
+    ServiceName = aws_ecs_service.this.name
+  }
+
+  alarm_actions = var.alarm_actions
+  tags          = var.tags
 }

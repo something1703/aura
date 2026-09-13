@@ -41,25 +41,68 @@ resource "aws_db_instance" "this" {
 
   # Standalone-primary-only settings (must be null when replicating).
   engine                      = var.replicate_source_db == null ? var.engine : null
-  engine_version               = var.replicate_source_db == null ? var.engine_version : null
-  allocated_storage            = var.replicate_source_db == null ? var.allocated_storage : null
-  storage_encrypted            = var.replicate_source_db == null ? true : null
-  db_name                      = var.replicate_source_db == null ? var.db_name : null
-  username                     = var.replicate_source_db == null ? var.username : null
-  manage_master_user_password  = var.replicate_source_db == null ? true : null
-  backup_retention_period      = var.replicate_source_db == null ? 7 : null
+  engine_version              = var.replicate_source_db == null ? var.engine_version : null
+  allocated_storage           = var.replicate_source_db == null ? var.allocated_storage : null
+  storage_encrypted           = var.replicate_source_db == null ? true : null
+  db_name                     = var.replicate_source_db == null ? var.db_name : null
+  username                    = var.replicate_source_db == null ? var.username : null
+  manage_master_user_password = var.replicate_source_db == null ? true : null
+  backup_retention_period     = var.replicate_source_db == null ? 7 : null
 
   # Replica-only settings.
   replicate_source_db = var.replicate_source_db
   kms_key_id          = var.replicate_source_db != null ? var.kms_key_id : null
 
   # Common to both.
-  multi_az                = var.multi_az
-  db_subnet_group_name    = aws_db_subnet_group.this.name
-  vpc_security_group_ids  = [aws_security_group.this.id]
-  skip_final_snapshot     = true
-  deletion_protection     = false
-  apply_immediately       = true
+  multi_az               = var.multi_az
+  db_subnet_group_name   = aws_db_subnet_group.this.name
+  vpc_security_group_ids = [aws_security_group.this.id]
+  skip_final_snapshot    = true
+  deletion_protection    = false
+  apply_immediately      = true
 
   tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  count               = var.enable_alarms ? 1 : 0
+  alarm_name          = "${var.name}-rds-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 85
+  alarm_description   = "${var.name} RDS instance sustained CPU > 85%."
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.this.id
+  }
+
+  alarm_actions = var.alarm_actions
+  tags          = var.tags
+}
+
+# Only meaningful on a replica; a standalone primary has no ReplicaLag metric.
+resource "aws_cloudwatch_metric_alarm" "replica_lag_high" {
+  count               = var.enable_alarms && var.is_replica ? 1 : 0
+  alarm_name          = "${var.name}-rds-replica-lag-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "ReplicaLag"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = var.replica_lag_alarm_threshold_seconds
+  alarm_description   = "${var.name} cross-region replica lag exceeds the ${var.replica_lag_alarm_threshold_seconds}s RPO this architecture assumed."
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.this.id
+  }
+
+  alarm_actions = var.alarm_actions
+  tags          = var.tags
 }

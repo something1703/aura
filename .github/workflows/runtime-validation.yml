@@ -1,0 +1,39 @@
+name: Runtime architecture validation
+
+# docs/IMPLEMENTATION_PHASES.md Phase 3 "runtime architecture validation" /
+# the "Runtime reliability loop" (Deploy -> Observe -> Compare actual
+# behavior to architecture assumptions -> Detect drift -> ...).
+#
+# Periodically re-runs the same desired-vs-observed comparison
+# `aura validate-deployed` does on demand, so drift is caught even when
+# nobody happens to run it by hand. Inert (skips its one job) until the
+# repo owner adds AWS_ROLE_ARN — see ci.yml's terraform-plan job and
+# terraform/README.md for the same OIDC setup this reuses.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *" # every 6 hours; offset off the hour to avoid GH's top-of-hour pileup
+  workflow_dispatch: {}
+
+jobs:
+  validate-deployed:
+    name: aura validate-deployed
+    runs-on: ubuntu-latest
+    if: ${{ secrets.AWS_ROLE_ARN != '' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-south-1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[aws]"
+      - run: |
+          aura validate-deployed \
+            --workload config/flash-commerce.yaml \
+            --region ap-south-1

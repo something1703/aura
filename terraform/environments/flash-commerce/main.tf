@@ -96,11 +96,11 @@ module "cache_primary" {
     aws = aws.primary
   }
 
-  name                        = "${local.name_prefix}-primary"
-  vpc_id                      = module.network_primary.vpc_id
-  private_subnet_ids          = module.network_primary.private_subnet_ids
-  allowed_security_group_ids  = [module.compute_primary.service_security_group_id]
-  tags                        = local.common_tags
+  name                       = "${local.name_prefix}-primary"
+  vpc_id                     = module.network_primary.vpc_id
+  private_subnet_ids         = module.network_primary.private_subnet_ids
+  allowed_security_group_ids = [module.compute_primary.service_security_group_id]
+  tags                       = local.common_tags
 }
 
 # Cross-region RDS read replicas need a KMS key local to the destination
@@ -118,13 +118,13 @@ module "database_primary" {
     aws = aws.primary
   }
 
-  name                        = "${local.name_prefix}-primary"
-  vpc_id                      = module.network_primary.vpc_id
-  private_subnet_ids          = module.network_primary.private_subnet_ids
-  allowed_security_group_ids  = [module.compute_primary.service_security_group_id]
-  instance_class              = var.database_instance_class
-  multi_az                    = true
-  tags                        = local.common_tags
+  name                       = "${local.name_prefix}-primary"
+  vpc_id                     = module.network_primary.vpc_id
+  private_subnet_ids         = module.network_primary.private_subnet_ids
+  allowed_security_group_ids = [module.compute_primary.service_security_group_id]
+  instance_class             = var.database_instance_class
+  multi_az                   = true
+  tags                       = local.common_tags
 }
 
 module "database_secondary" {
@@ -133,13 +133,14 @@ module "database_secondary" {
     aws = aws.secondary
   }
 
-  name                        = "${local.name_prefix}-secondary"
-  vpc_id                      = module.network_secondary.vpc_id
-  private_subnet_ids          = module.network_secondary.private_subnet_ids
-  allowed_security_group_ids  = [module.compute_secondary.service_security_group_id]
-  instance_class              = var.database_instance_class
-  replicate_source_db         = module.database_primary.arn
-  kms_key_id                  = aws_kms_key.database_replica.arn
-  multi_az                    = var.database_multi_az_secondary
-  tags                        = local.common_tags
+  name                       = "${local.name_prefix}-secondary"
+  vpc_id                     = module.network_secondary.vpc_id
+  private_subnet_ids         = module.network_secondary.private_subnet_ids
+  allowed_security_group_ids = [module.compute_secondary.service_security_group_id]
+  instance_class             = var.database_instance_class
+  is_replica                 = true
+  replicate_source_db        = module.database_primary.arn
+  kms_key_id                 = aws_kms_key.database_replica.arn
+  multi_az                   = var.database_multi_az_secondary
+  tags                       = local.common_tags
 }

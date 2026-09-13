@@ -57,6 +57,12 @@ variable "replicate_source_db" {
   default     = null
 }
 
+variable "is_replica" {
+  description = "Set true alongside replicate_source_db. Kept as a separate literal (rather than inferring from `replicate_source_db != null`) because the caller passes a not-yet-created resource's ARN there — an unknown-until-apply value can't drive a `count` — while whether this instance *is* a replica is always known at plan time."
+  type        = bool
+  default     = false
+}
+
 variable "kms_key_id" {
   description = "KMS key for this instance's encrypted storage in this region. Required when replicate_source_db is set (cross-region replicas need a key local to the destination region)."
   type        = string
@@ -66,4 +72,22 @@ variable "kms_key_id" {
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+variable "enable_alarms" {
+  description = "Create CloudWatch alarms for this database (docs/IMPLEMENTATION_PHASES.md Phase 3 observability)."
+  type        = bool
+  default     = true
+}
+
+variable "alarm_actions" {
+  description = "SNS topic ARNs (or similar) to notify. Empty by default: alarms still exist and are visible in the console, they just don't page anyone until this is wired up."
+  type        = list(string)
+  default     = []
+}
+
+variable "replica_lag_alarm_threshold_seconds" {
+  description = "Alarm when real cross-region replica lag exceeds this. Defaults to the warm-standby pattern's RPO envelope (see aura.architecture.catalog.MULTI_REGION_WARM_STANDBY) — this alarm directly checks, against real data, the RPO assumption the cost/failure engines already baked in."
+  type        = number
+  default     = 60
 }
