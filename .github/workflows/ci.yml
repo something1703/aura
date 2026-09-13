@@ -103,10 +103,11 @@ jobs:
       # Static analysis only — no AWS credentials, nothing deployed.
       # docs/IMPLEMENTATION_PHASES.md Phase 3 "security policy checks".
       - name: Trivy config scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: terraform
+          trivyignores: terraform/.trivyignore
           exit-code: "1"
           severity: "CRITICAL,HIGH"
 

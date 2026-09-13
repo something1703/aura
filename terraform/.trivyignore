@@ -1,0 +1,41 @@
+# Each entry below is a deliberate design choice for this project, not an
+# oversight — reviewed individually rather than lowering the scan severity
+# threshold to make them go away. AWS-0052 (ALB not dropping invalid
+# headers) was a real, free fix and is NOT ignored — see
+# modules/compute/main.tf's aws_lb.drop_invalid_header_fields.
+
+# "Subnet associates public IP address" — the public subnets exist
+# specifically to host an internet-facing ALB
+# (config/flash-commerce.yaml: security.internet_facing: true), which
+# requires a reachable public IP. Private subnets (compute/database/cache)
+# do not set this and are correctly flagged clean.
+AWS-0164
+
+# "Load balancer is exposed publicly" — same reason as AWS-0164: this is an
+# internet-facing workload by declared requirement, not an accident.
+AWS-0053
+
+# "Listener does not use HTTPS" — already documented in this file's parent
+# README ("Known limitations"): no registered domain exists for this demo,
+# so there is nothing to issue an ACM certificate for. HTTP-only is a
+# conscious simplification, not a missed step.
+AWS-0054
+
+# "Security group rule allows unrestricted egress" — on the ALB (needs to
+# reach targets/health-checks) and compute (needs ECR/CloudWatch/Secrets
+# Manager/general outbound API access) security groups, broad egress is
+# normal and matches the AWS-managed default security group behavior.
+# Deliberately NOT narrowed on the database/cache security groups either:
+# tightening RDS/ElastiCache egress without a live environment to verify
+# against risks silently breaking AWS-managed maintenance operations
+# (backups, option groups, engine updates) for an unverified security
+# benefit, since inbound is already tightly scoped to the application
+# tier's security group specifically.
+AWS-0104
+
+# "ECR repository tags are mutable" — deliberate: terraform/README.md's
+# aura-control-plane workflow re-pushes the same `:latest` tag on every
+# redeploy. Immutable tags would reject that push, breaking the documented
+# redeploy flow for a demo control plane that has no versioned release
+# process (yet).
+AWS-0031

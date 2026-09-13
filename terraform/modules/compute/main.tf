@@ -54,12 +54,13 @@ resource "aws_security_group" "service" {
 }
 
 resource "aws_lb" "this" {
-  name               = "${var.name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = var.public_subnet_ids
-  tags               = var.tags
+  name                       = "${var.name}-alb"
+  internal                   = false
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.alb.id]
+  subnets                    = var.public_subnet_ids
+  drop_invalid_header_fields = true
+  tags                       = var.tags
 }
 
 resource "aws_lb_target_group" "this" {
