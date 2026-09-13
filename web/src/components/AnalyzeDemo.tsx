@@ -8,10 +8,13 @@ import {
   type Candidate,
   type CandidateScore,
 } from "@/lib/api";
+import { explainRecommendation } from "@/lib/explain";
 import { Badge } from "./Badge";
 import { BreakEverything } from "./BreakEverything";
+import { Legend } from "./Legend";
 import { MermaidDiagram } from "./MermaidDiagram";
 import { ReportMarkdown } from "./ReportMarkdown";
+import { Term } from "./Term";
 
 export function AnalyzeDemo() {
   const [yamlText, setYamlText] = useState("");
@@ -107,8 +110,14 @@ export function AnalyzeDemo() {
       {result && (
         <section id="results" className="mx-auto max-w-5xl px-5 py-16">
           <RecommendationBanner candidate={recommendationCandidate} score={recommendationScore} />
+          <Legend />
 
           <h2 className="mt-10 text-2xl font-semibold text-zinc-900">Candidate comparison</h2>
+          <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+            Every candidate the architecture engine generated, ranked eligible-first then by
+            score. Click a row to inspect it below — the diagram, strategy, and every table that
+            follows describes whichever candidate is selected, not just the recommendation.
+          </p>
           <CandidateTable
             scores={result.scores}
             candidates={result.candidates}
@@ -121,6 +130,11 @@ export function AnalyzeDemo() {
               <h2 className="mt-12 text-2xl font-semibold text-zinc-900">
                 Selected candidate: {selectedCandidate.name}
               </h2>
+              <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+                The topology AURA actually generated for this pattern, placed in real regions, and
+                the narrative decisions (availability, scaling, data, failure strategy) it derived
+                from the workload&apos;s declared requirements.
+              </p>
               <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_1fr]">
                 <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
                   <MermaidDiagram chart={selectedCandidate.diagram} />
@@ -136,23 +150,55 @@ export function AnalyzeDemo() {
               />
 
               <h3 className="mt-9 text-lg font-semibold text-zinc-900">Scoring breakdown</h3>
+              <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+                The 8 dimensions behind the weighted score above: each one&apos;s own 0–100{" "}
+                <Term term="dimensionScore">value</Term>, its configured{" "}
+                <Term term="weight">weight</Term>, and the evidence AURA computed it from — not a
+                black box.
+              </p>
               <ScoringTable score={selectedScore} />
 
               <h3 className="mt-9 text-lg font-semibold text-zinc-900">Rule evaluation</h3>
+              <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+                The 9 deterministic rules every candidate is checked against. A{" "}
+                <Term term="mandatory">mandatory</Term> rule that FAILs is what makes a candidate{" "}
+                <Term term="eligibility">ineligible</Term> — see &quot;Rejected candidates&quot;
+                below for which ones that happened to.
+              </p>
               <RulesTable score={selectedScore} />
 
               <h3 className="mt-9 text-lg font-semibold text-zinc-900">Failure analysis</h3>
+              <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+                8 failure scenarios simulated against this candidate&apos;s actual topology (nodes
+                removed, dependencies traced) — see how each compares to the declared{" "}
+                <Term term="rto">RTO</Term>/<Term term="rpo">RPO</Term> and what it does to{" "}
+                <Term term="blastRadius">blast radius</Term>. All <Term term="evidence">MODELLED</Term>.
+              </p>
               <FailureTable score={selectedScore} />
 
               <h3 className="mt-9 text-lg font-semibold text-zinc-900">Cost analysis</h3>
+              <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+                Estimated at 4 load scenarios with itemized, assumption-labelled line items —
+                never presented as an invoice (see docs/COST_MODEL.md). The rule evaluation above
+                compares peak-load cost against the workload&apos;s declared budget.
+              </p>
               <CostTables score={selectedScore} />
             </>
           )}
 
           <h3 className="mt-9 text-lg font-semibold text-zinc-900">Rejected candidates</h3>
+          <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+            Candidates that failed at least one mandatory rule, and exactly why — a high score
+            elsewhere never buys back a violated hard constraint.
+          </p>
           <RejectedPanel scores={result.scores} />
 
           <h3 className="mt-9 text-lg font-semibold text-zinc-900">Architecture Decision Records</h3>
+          <p className="mt-1 max-w-2xl text-sm text-zinc-600">
+            Generated only for the meaningful decisions behind the recommendation — compute, data,
+            region, deployment, scaling, and recovery strategy — each in the Status/Context/
+            Decision/Consequences format the rest of this repo&apos;s ADRs use.
+          </p>
           <AdrPanel adrs={result.adrs} />
 
           <h3 className="mt-9 text-lg font-semibold text-zinc-900">Full report</h3>
@@ -192,11 +238,13 @@ function RecommendationBanner({
     <div className="rounded-xl border border-zinc-200 border-l-4 border-l-emerald-600 bg-white p-5 shadow-sm">
       <div className="text-lg font-bold text-zinc-900">Recommendation: {candidate.name}</div>
       <div className="mt-1 text-sm text-zinc-500">
-        Weighted score {score.weighted_score}/100 &middot; confidence {score.confidence} &middot;
-        primary region {candidate.primary_region}
+        <Term term="weightedScore">Weighted score</Term> {score.weighted_score}/100 &middot;{" "}
+        <Term term="confidence">confidence</Term> {score.confidence} &middot; primary region{" "}
+        {candidate.primary_region}
         {candidate.secondary_region ? ` + ${candidate.secondary_region}` : ""}
       </div>
       <p className="mt-2 text-sm text-zinc-700">{candidate.description}</p>
+      <p className="mt-2 text-sm font-medium text-emerald-800">{explainRecommendation(score)}</p>
     </div>
   );
 }
@@ -237,10 +285,18 @@ function CandidateTable({
       <thead>
         <tr>
           <Th>Candidate</Th>
-          <Th>Eligibility</Th>
-          <Th>Score</Th>
-          <Th>Confidence</Th>
-          <Th>Blast radius</Th>
+          <Th>
+            <Term term="eligibility">Eligibility</Term>
+          </Th>
+          <Th>
+            <Term term="weightedScore">Score</Term>
+          </Th>
+          <Th>
+            <Term term="confidence">Confidence</Term>
+          </Th>
+          <Th>
+            <Term term="blastRadius">Blast radius</Term>
+          </Th>
           <Th>AZ survives</Th>
           <Th>Region survives</Th>
         </tr>
@@ -320,8 +376,12 @@ function ScoringTable({ score }: { score: CandidateScore }) {
       <thead>
         <tr>
           <Th>Dimension</Th>
-          <Th>Score</Th>
-          <Th>Weight</Th>
+          <Th>
+            <Term term="dimensionScore">Score</Term>
+          </Th>
+          <Th>
+            <Term term="weight">Weight</Term>
+          </Th>
           <Th>Evidence</Th>
         </tr>
       </thead>
@@ -346,7 +406,9 @@ function RulesTable({ score }: { score: CandidateScore }) {
         <tr>
           <Th>Rule</Th>
           <Th>Status</Th>
-          <Th>Mandatory</Th>
+          <Th>
+            <Term term="mandatory">Mandatory</Term>
+          </Th>
           <Th>Evidence</Th>
         </tr>
       </thead>
@@ -372,9 +434,15 @@ function FailureTable({ score }: { score: CandidateScore }) {
       <thead>
         <tr>
           <Th>Scenario</Th>
-          <Th>Blast radius</Th>
-          <Th>RTO</Th>
-          <Th>RPO</Th>
+          <Th>
+            <Term term="blastRadius">Blast radius</Term>
+          </Th>
+          <Th>
+            <Term term="rto">RTO</Term>
+          </Th>
+          <Th>
+            <Term term="rpo">RPO</Term>
+          </Th>
           <Th>Expected recovery</Th>
           <Th>Recovery action</Th>
         </tr>
