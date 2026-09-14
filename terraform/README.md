@@ -1,6 +1,9 @@
 # Terraform
 
-Two independent environments, both built from the same four modules:
+Five reusable modules, and environments built from them two ways: hand-wired
+(the two checked-in ones below) or **generated directly from an AURA
+candidate** (see "Generated environments" — this is what actually closes the
+loop between "AURA recommends X" and "the infrastructure matches X").
 
 ```
 terraform/
@@ -8,11 +11,48 @@ terraform/
 │   ├── networking/        # dedicated VPC, public+private subnets, 1 NAT GW
 │   ├── compute/            # ALB (HTTP) + ECS Fargate cluster/service + CloudWatch alarms
 │   ├── database/           # RDS Multi-AZ, or a (cross-region) read replica + alarms
-│   └── cache/               # single-node ElastiCache Redis
+│   ├── cache/               # single-node ElastiCache Redis
+│   └── queue/                # durable SQS queue + DLQ (event-driven-buffered pattern)
 └── environments/
     ├── flash-commerce/      # the workload AURA is analyzing — see below
     └── aura-control-plane/  # AURA's own API, deployed — see below
 ```
+
+## Generated environments — closing the AURA → Terraform loop
+
+`terraform/environments/flash-commerce/` (below) was originally hand-written
+by reading one AURA recommendation once. That never updates: change the
+workload and get a different recommendation, and that Terraform sits there
+unchanged until a human rewrites it. `aura terraform generate` fixes that —
+it renders real `.tf` files directly from a candidate's actual topology
+(`candidate.topology`, `candidate.primary_region`, ...), the same data the
+analysis already computed, via `src/aura/reporting/terraform_codegen.py`.
+
+```bash
+aura terraform generate config/flash-commerce.yaml \
+  --output-dir terraform/environments/my-generated-env
+# or a specific pattern instead of the recommendation:
+aura terraform generate config/flash-commerce.yaml \
+  --candidate single-region-multi-az --output-dir terraform/environments/my-single-region
+
+cd terraform/environments/my-generated-env
+terraform init && terraform validate && terraform plan
+```
+
+Generated environments always include exactly the modules that candidate's
+topology has — no secondary region/KMS key for a single-region pattern, a
+`queue` module (with the compute task wired for SQS access) only for
+event-driven-buffered, `cache_secondary` only for active-active. `desired_count`
+defaults to what the workload's peak RPS actually needs at the cost engine's
+50-RPS/task assumption — which can be a very large, real, correct-but-not-
+demo-sized number (`aura terraform generate` prints a warning when it is,
+with the `-var` overrides to use instead). A `global-router`/`cdn` component
+in the topology gets a comment, not generated code — both need a registered
+domain this generator has no way to know about.
+
+**Never overwrites an existing deployed environment's state** — always
+targets a directory you name; regenerating a workload you've already applied
+means diffing/moving the new files in yourself, not an automatic migration.
 
 ## `environments/flash-commerce/`
 

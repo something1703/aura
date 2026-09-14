@@ -117,6 +117,40 @@ resource "aws_iam_role_policy_attachment" "execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Task role: what the application code *inside* the container is allowed to
+# call, as opposed to the execution role above (what the ECS agent itself
+# needs to start the task). Only created when this candidate's topology
+# actually has a queue component.
+resource "aws_iam_role" "task" {
+  count = var.has_sqs_queue ? 1 : 0
+  name  = "${var.name}-ecs-task"
+  tags  = var.tags
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "task_sqs" {
+  count = var.has_sqs_queue ? 1 : 0
+  name  = "${var.name}-sqs-access"
+  role  = aws_iam_role.task[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+      Resource = var.sqs_queue_arn
+    }]
+  })
+}
+
 resource "aws_cloudwatch_log_group" "this" {
   name              = "/ecs/${var.name}"
   retention_in_days = 14
@@ -130,6 +164,7 @@ resource "aws_ecs_task_definition" "this" {
   cpu                      = var.cpu
   memory                   = var.memory
   execution_role_arn       = aws_iam_role.execution.arn
+  task_role_arn            = var.has_sqs_queue ? aws_iam_role.task[0].arn : null
   tags                     = var.tags
 
   container_definitions = jsonencode([
@@ -141,7 +176,10 @@ resource "aws_ecs_task_definition" "this" {
         { containerPort = var.container_port, protocol = "tcp" }
       ]
       environment = [
-        for k, v in var.environment_variables : { name = k, value = v }
+        for k, v in merge(
+          var.environment_variables,
+          var.sqs_queue_url != null ? { QUEUE_URL = var.sqs_queue_url } : {}
+        ) : { name = k, value = v }
       ]
       logConfiguration = {
         logDriver = "awslogs"

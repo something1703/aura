@@ -26,6 +26,7 @@ from aura.providers.terraform import load_terraform_plan
 from aura.reporting.adr import generate_adrs
 from aura.reporting.context import build_context
 from aura.reporting.markdown import render_report
+from aura.reporting.terraform_codegen import build_terraform_context, generate_terraform_files
 from aura.requirements.loader import load_workload_document
 from aura.requirements.normalizer import NormalizedRequirements, normalize
 from aura.requirements.validator import validate_workload
@@ -291,6 +292,74 @@ def terraform_inspect(
 
     typer.echo(to_json(desired.model_dump(mode="json")))
     typer.secho(f"\n{len(desired.resources)} resource(s) declared.", fg=typer.colors.GREEN, err=True)
+
+
+@terraform_app.command("generate")
+def terraform_generate(
+    workload_path: Path = typer.Argument(..., help="Path to a workload YAML file."),
+    output_dir: Path = typer.Option(
+        ..., "--output-dir", "-o", help="Directory to write providers.tf/variables.tf/main.tf/outputs.tf into."
+    ),
+    candidate_id: str | None = typer.Option(
+        None,
+        "--candidate",
+        help="Generate for this specific pattern id instead of the recommendation, e.g. single-region-multi-az.",
+    ),
+) -> None:
+    """Render real Terraform from a candidate's actual topology — closes the loop between
+    'AURA recommends X' and 'the infrastructure matches X'. Regenerate this after any workload
+    change instead of hand-editing; never touches an existing deployed environment's state."""
+
+    try:
+        _, normalized, candidates, scores = _evaluate_workload(workload_path)
+    except AuraError as exc:
+        fail(exc)
+        return
+
+    if candidate_id:
+        candidate = next((c for c in candidates if c.id == candidate_id), None)
+        if candidate is None:
+            typer.secho(
+                f"error: no candidate '{candidate_id}'. Choices: {', '.join(c.id for c in candidates)}",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+    else:
+        recommendation = select_recommendation(scores)
+        if recommendation is None:
+            typer.secho(
+                "error: no eligible candidate to generate from. Pass --candidate to force a "
+                "specific (possibly ineligible) one.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        candidate = next(c for c in candidates if c.id == recommendation.candidate_id)
+
+    files = generate_terraform_files(candidate, normalized)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for filename, content in files.items():
+        (output_dir / filename).write_text(content, encoding="utf-8")
+
+    typer.secho(
+        f"generated {len(files)} file(s) in {output_dir} for candidate '{candidate.id}' ({candidate.name}).",
+        fg=typer.colors.GREEN,
+        err=True,
+    )
+
+    ctx = build_terraform_context(candidate, normalized)
+    total_tasks = ctx["primary_desired_count"] + ctx["secondary_desired_count"]
+    if total_tasks > 20:
+        typer.secho(
+            f"note: {ctx['primary_desired_count']} + {ctx['secondary_desired_count']} tasks is what "
+            f"{ctx['peak_rps']:.0f} peak RPS actually needs — real, but not demo-sized. Override before "
+            f"applying: terraform apply -var primary_desired_count=3 -var secondary_desired_count=2",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+
+    typer.secho("next: cd there and run `terraform init && terraform validate && terraform plan`.", err=True)
 
 
 @terraform_app.command("drift")

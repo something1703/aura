@@ -71,6 +71,24 @@ variable "environment_variables" {
   default     = {}
 }
 
+variable "has_sqs_queue" {
+  description = "Set true alongside sqs_queue_arn. Kept as a separate literal (rather than inferring from `sqs_queue_arn != null`) because the caller usually passes a not-yet-created queue module's ARN — an unknown-until-apply value can't drive `count` — while whether a queue exists at all is always known at plan time. Same pattern as modules/database's is_replica."
+  type        = bool
+  default     = false
+}
+
+variable "sqs_queue_arn" {
+  description = "When set (the event-driven-buffered pattern's queue component), grants the task role SendMessage/ReceiveMessage/DeleteMessage/GetQueueAttributes on this queue."
+  type        = string
+  default     = null
+}
+
+variable "sqs_queue_url" {
+  description = "When set alongside sqs_queue_arn, injected as the QUEUE_URL environment variable."
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

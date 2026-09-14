@@ -1,0 +1,43 @@
+output "primary_alb_dns_name" {
+  value = module.compute_primary.alb_dns_name
+}
+{% if is_multi_region %}
+
+output "secondary_alb_dns_name" {
+  value = module.compute_secondary.alb_dns_name
+}
+{% endif %}
+
+output "primary_vpc_id" {
+  value = module.network_primary.vpc_id
+}
+{% if is_multi_region %}
+
+output "secondary_vpc_id" {
+  value = module.network_secondary.vpc_id
+}
+{% endif %}
+
+output "primary_database_endpoint" {
+  value     = module.database_primary.endpoint
+  sensitive = true
+}
+{% if is_multi_region %}
+
+output "secondary_database_endpoint" {
+  value     = module.database_secondary.endpoint
+  sensitive = true
+}
+{% endif %}
+{% if has_cache %}
+
+output "cache_endpoint" {
+  value = module.cache_primary.endpoint
+}
+{% endif %}
+{% if has_queue %}
+
+output "queue_url" {
+  value = module.queue.queue_url
+}
+{% endif %}

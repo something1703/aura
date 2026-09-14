@@ -35,7 +35,7 @@ aura = "aura.cli.main:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aura = ["reporting/templates/*.j2", "web/examples/*.yaml"]
+aura = ["reporting/templates/*.j2", "reporting/templates/terraform/*.j2", "web/examples/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
