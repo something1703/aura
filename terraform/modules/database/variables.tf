@@ -21,8 +21,9 @@ variable "engine" {
 }
 
 variable "engine_version" {
-  type    = string
-  default = "16.4"
+  description = "Major version only ('16', not '16.4'): AWS periodically retires specific RDS minor versions (16.4 through 16.8 are gone as of 2026-09), so pinning one goes stale on its own schedule. A bare major version lets RDS pick whichever minor is currently supported."
+  type        = string
+  default     = "16"
 }
 
 variable "instance_class" {
