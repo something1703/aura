@@ -1,0 +1,61 @@
+application:
+  name: flash-commerce
+  type: ecommerce
+  stateful: true
+
+traffic:
+  average_rps: 5000
+  peak_rps: 150000
+  peak_duration_minutes: 20
+  growth_percent_per_month: 15
+
+# Demo fixture (docs/DEMO_RUNBOOK.md "prove it's not hardcoded"): identical
+# to flash-commerce.yaml except availability/recovery are relaxed enough to
+# flip the recommendation away from multi-region entirely. `diff` the two
+# files during a demo, then `aura report` both and compare "Recommendation:"
+# lines - confirmed live to go from "Multi-region warm standby" to
+# "Event-driven buffered (single region)", not just a score wobble.
+availability:
+  target: 99.9%
+  multi_az_required: true
+
+recovery:
+  rto_minutes: 60
+  rpo_minutes: 30
+  regional_disaster_required: false
+
+consistency:
+  orders: strong
+  payments: strong
+  catalog: eventual
+
+geography:
+  primary_regions:
+    - ap-south-1
+  user_regions:
+    - IN
+    - SG
+    - AE
+
+budget:
+  monthly_usd: 15000
+  hard_limit: false
+
+deployment:
+  frequency_per_day: 10
+  downtime_allowed: false
+  rollback_target_minutes: 5
+
+security:
+  internet_facing: true
+  data_classification: confidential
+  encryption_at_rest: true
+  encryption_in_transit: true
+
+assumptions:
+  - id: traffic-burst
+    statement: peak traffic may arrive within 30 seconds
+    confidence: 0.8
+  - id: regional-failover
+    statement: business accepts degraded capacity during regional recovery
+    confidence: 0.7
