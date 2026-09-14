@@ -44,6 +44,10 @@ module "network" {
 resource "aws_ecr_repository" "aura_api" {
   name                 = "${local.name}-api"
   image_tag_mutability = "MUTABLE"
+  # Without this, `terraform destroy` fails outright on a non-empty repo
+  # (RepositoryNotEmptyException) - this repo always has at least one
+  # pushed image by the time anyone runs destroy.
+  force_delete = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -55,6 +59,7 @@ resource "aws_ecr_repository" "aura_api" {
 resource "aws_ecr_repository" "aura_web" {
   name                 = "${local.name}-web"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
