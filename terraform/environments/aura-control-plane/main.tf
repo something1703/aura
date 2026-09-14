@@ -100,6 +100,15 @@ module "web" {
   health_check_path = "/"
   desired_count     = var.web_desired_count
 
+  # ARM64 (Graviton), not the module default X86_64: web/'s Tailwind v4
+  # toolchain (lightningcss, a Rust-compiled native addon) segfaults under
+  # QEMU's x86_64 emulation when cross-built on an Apple Silicon dev
+  # machine — hit for real running through this exact guide. Building
+  # natively for ARM64 sidesteps emulation entirely, and Graviton Fargate is
+  # also cheaper. See the matching --platform linux/arm64 in README.md's
+  # docker build command below.
+  cpu_architecture = "ARM64"
+
   # Read at request time by web/src/app/api/[...path]/route.ts — not baked
   # in at image build time, so this same image would work unchanged against
   # any other AURA API deployment too.

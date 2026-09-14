@@ -167,6 +167,15 @@ resource "aws_ecs_task_definition" "this" {
   task_role_arn            = var.has_sqs_queue ? aws_iam_role.task[0].arn : null
   tags                     = var.tags
 
+  # Must match the actual architecture the pushed image was built for:
+  # Fargate defaults to X86_64, and ECS will pull an image for any other
+  # platform without complaint, then fail every task with
+  # CannotPullContainerError (or, worse, run a badly-emulated build of one).
+  runtime_platform {
+    cpu_architecture        = var.cpu_architecture
+    operating_system_family = "LINUX"
+  }
+
   container_definitions = jsonencode([
     {
       name      = var.name

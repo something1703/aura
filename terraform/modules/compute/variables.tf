@@ -47,6 +47,17 @@ variable "memory" {
   default = 512
 }
 
+variable "cpu_architecture" {
+  description = "Fargate task CPU architecture: \"X86_64\" or \"ARM64\" (Graviton). Must match whatever platform the pushed container_image was actually built for."
+  type        = string
+  default     = "X86_64"
+
+  validation {
+    condition     = contains(["X86_64", "ARM64"], var.cpu_architecture)
+    error_message = "cpu_architecture must be \"X86_64\" or \"ARM64\"."
+  }
+}
+
 variable "enable_deployment_circuit_breaker" {
   description = "Automatically roll back a deployment whose new tasks never stabilize (fail health checks / crash loop)."
   type        = bool

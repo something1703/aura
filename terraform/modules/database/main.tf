@@ -92,6 +92,20 @@ resource "aws_db_instance" "this" {
   apply_immediately      = true
 
   tags = var.tags
+
+  lifecycle {
+    # A replica has no storage_encrypted of its own to set — AWS rejects it
+    # as a create-replica parameter and always inherits the source's value
+    # (`true` here, since the primary above is always encrypted) — but it's
+    # then reported back on every read. Left unignored, that shows up as
+    # config (null, since it's set above only `... == null ? true : null`)
+    # disagreeing with the real, inherited state (true), and because
+    # storage_encrypted can only ever be set at creation, Terraform's next
+    # plan responds by proposing to destroy and recreate the live replica
+    # to "fix" a value that was never actually wrong — confirmed for real
+    # against this exact module (flash-commerce's secondary database).
+    ignore_changes = [storage_encrypted]
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {

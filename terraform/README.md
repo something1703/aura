@@ -164,10 +164,35 @@ terraform apply            # creates 2 ECR repos, VPC, 2 ALBs, and 2 ECS
 aws ecr get-login-password --region ap-south-1 \
   | docker login --username AWS --password-stdin "$(terraform output -raw api_ecr_repository_url | cut -d/ -f1)"
 
-docker build -t "$(terraform output -raw api_ecr_repository_url):latest" -f ../../../Dockerfile ../../..
+# --platform matters, and the two images need different ones here:
+#
+# API -> linux/amd64 (module default cpu_architecture = "X86_64"). Explicit
+# because a `docker build` on an Apple Silicon Mac produces arm64 by
+# default — an image that looks like it pushed fine but that ECS then can't
+# pull ("CannotPullContainerError: image Manifest does not contain
+# descriptor matching platform 'linux/amd64'"), hit for real running
+# through this exact guide. Cross-compiling amd64 on Apple Silicon works
+# fine here (pip/Python has no native-binary segfault risk under QEMU).
+#
+# Web -> linux/arm64, matching main.tf's cpu_architecture = "ARM64" for
+# this module call specifically. NOT amd64, even though that's what
+# actually runs on Fargate by default elsewhere: web/'s Tailwind v4
+# toolchain (lightningcss, a Rust-compiled native addon) segfaults under
+# QEMU's x86_64 emulation when cross-built on an Apple Silicon machine
+# (`Segmentation fault`, exit 139) — also hit for real. Building natively
+# for the arch this Mac already is sidesteps emulation entirely; the ECS
+# side is told to expect that via cpu_architecture.
+#
+# On an x86_64 build machine (CI's GitHub-hosted runners included), both
+# of these flags are unnecessary but harmless to leave in — except the web
+# one, which would need to become --platform linux/amd64 there to match,
+# same as the API. If you're not on an Apple Silicon Mac, build both with
+# --platform linux/amd64 and set cpu_architecture = "X86_64" for both
+# module calls in main.tf instead.
+docker build --platform linux/amd64 -t "$(terraform output -raw api_ecr_repository_url):latest" -f ../../../Dockerfile ../../..
 docker push "$(terraform output -raw api_ecr_repository_url):latest"
 
-docker build -t "$(terraform output -raw web_ecr_repository_url):latest" -f ../../../Dockerfile.web ../../..
+docker build --platform linux/arm64 -t "$(terraform output -raw web_ecr_repository_url):latest" -f ../../../Dockerfile.web ../../..
 docker push "$(terraform output -raw web_ecr_repository_url):latest"
 
 # ECS picks up new images on its own within a few minutes, or force it:
