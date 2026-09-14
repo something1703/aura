@@ -1,8 +1,37 @@
 # RDS instance. When `replicate_source_db` is unset this is a standalone
-# primary (Multi-AZ, encrypted, password managed by AWS Secrets Manager —
-# never a plaintext password in state). When it is set, this becomes a
-# (possibly cross-region) read replica; most settings are then inherited
-# from the source and must be left null here.
+# primary (Multi-AZ, encrypted); when it is set, this becomes a (possibly
+# cross-region) read replica, and most settings are inherited from the
+# source and must be left null here.
+#
+# Password: NOT manage_master_user_password (AWS-managed, via Secrets
+# Manager automatically) — AWS explicitly does not support creating a read
+# replica from a source that has it enabled ("InvalidParameterValue:
+# Creating read replicas for source instance with engine postgres where
+# ManageMasterUserPassword is enabled is not supported", hit for real
+# against this exact module). Explicit random_password + our own Secrets
+# Manager secret gets the same "no plaintext password to hand-type" outcome
+# without that restriction.
+
+resource "random_password" "master" {
+  count   = var.replicate_source_db == null ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "master_password" {
+  count = var.replicate_source_db == null ? 1 : 0
+  name  = "${var.name}-master-password"
+  tags  = var.tags
+}
+
+resource "aws_secretsmanager_secret_version" "master_password" {
+  count     = var.replicate_source_db == null ? 1 : 0
+  secret_id = aws_secretsmanager_secret.master_password[0].id
+  secret_string = jsonencode({
+    username = var.username
+    password = random_password.master[0].result
+  })
+}
 
 resource "aws_db_subnet_group" "this" {
   name       = "${var.name}-subnets"
@@ -40,14 +69,14 @@ resource "aws_db_instance" "this" {
   instance_class = var.instance_class
 
   # Standalone-primary-only settings (must be null when replicating).
-  engine                      = var.replicate_source_db == null ? var.engine : null
-  engine_version              = var.replicate_source_db == null ? var.engine_version : null
-  allocated_storage           = var.replicate_source_db == null ? var.allocated_storage : null
-  storage_encrypted           = var.replicate_source_db == null ? true : null
-  db_name                     = var.replicate_source_db == null ? var.db_name : null
-  username                    = var.replicate_source_db == null ? var.username : null
-  manage_master_user_password = var.replicate_source_db == null ? true : null
-  backup_retention_period     = var.replicate_source_db == null ? 7 : null
+  engine                  = var.replicate_source_db == null ? var.engine : null
+  engine_version          = var.replicate_source_db == null ? var.engine_version : null
+  allocated_storage       = var.replicate_source_db == null ? var.allocated_storage : null
+  storage_encrypted       = var.replicate_source_db == null ? true : null
+  db_name                 = var.replicate_source_db == null ? var.db_name : null
+  username                = var.replicate_source_db == null ? var.username : null
+  password                = var.replicate_source_db == null ? random_password.master[0].result : null
+  backup_retention_period = var.replicate_source_db == null ? 7 : null
 
   # Replica-only settings.
   replicate_source_db = var.replicate_source_db
