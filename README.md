@@ -319,14 +319,23 @@ npm install
 npm run dev                # http://localhost:3000
 ```
 
-Then open http://localhost:3000. If the API runs on a non-default host/port, point the UI
-at it with `NEXT_PUBLIC_AURA_API_URL` and allow that UI origin on the API with
-`AURA_WEB_ORIGIN`, e.g.:
+Then open http://localhost:3000. The browser only ever calls the UI's own origin
+(`/api/*`); a Next.js Route Handler (`web/src/app/api/[...path]/route.ts`) forwards
+those server-side to the real API, read from `AURA_API_URL` at request time — so if
+the API runs on a non-default host/port, point the UI at it with that var:
 
 ```bash
-AURA_WEB_ORIGIN=http://localhost:3100 aura serve --port 8100
-NEXT_PUBLIC_AURA_API_URL=http://127.0.0.1:8100 npm run dev -- --port 3100
+aura serve --port 8100
+AURA_API_URL=http://127.0.0.1:8100 npm run dev -- --port 3100
 ```
+
+This also means the browser and the API are never in a cross-origin relationship in
+normal use, so `AURA_WEB_ORIGIN` CORS allow-listing on the API is only relevant if
+something else (a script, `/docs`) calls the API directly from a browser.
+
+For an always-on deployment instead of localhost, see
+`terraform/environments/aura-control-plane/` — it stands up both services behind
+their own ALBs and wires `AURA_API_URL` between them automatically.
 
 ## Engineering principles
 

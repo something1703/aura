@@ -15,14 +15,20 @@ variable "desired_count" {
   default     = 2
 }
 
+variable "web_desired_count" {
+  description = "Fargate task count for the web UI."
+  type        = number
+  default     = 2
+}
+
 variable "image_tag" {
-  description = "Tag to deploy from the ECR repo this stack creates. Push an image with this tag before the first apply — see README.md."
+  description = "Tag to deploy from the API's ECR repo this stack creates. Push an image with this tag before the first apply — see README.md."
   type        = string
   default     = "latest"
 }
 
-variable "web_origin" {
-  description = "Origin of the deployed web UI, for CORS (AURA_WEB_ORIGIN). The UI itself isn't deployed by this stack."
+variable "web_image_tag" {
+  description = "Tag to deploy from the web UI's ECR repo this stack creates. Push an image with this tag before the first apply — see README.md."
   type        = string
-  default     = "http://localhost:3000"
+  default     = "latest"
 }

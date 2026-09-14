@@ -12,9 +12,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
-      args:
-        NEXT_PUBLIC_AURA_API_URL: http://localhost:8000
     ports:
       - "3000:3000"
+    environment:
+      # Read at request time by src/app/api/[...path]/route.ts. "api" is the
+      # other service's name on the compose network, not localhost.
+      AURA_API_URL: http://api:8000
     depends_on:
       - api

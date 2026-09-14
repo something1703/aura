@@ -1,4 +1,5 @@
-const API_BASE = process.env.NEXT_PUBLIC_AURA_API_URL ?? "http://127.0.0.1:8000";
+// Always same-origin: next.config.ts's rewrites() proxies /api/* to the
+// real backend server-side, so the browser never needs to know its URL.
 
 export interface NormalizedRequirement {
   value: unknown;
@@ -180,7 +181,7 @@ interface ApiErrorBody {
 }
 
 export async function fetchExample(): Promise<string> {
-  const res = await fetch(`${API_BASE}/api/example`);
+  const res = await fetch("/api/example");
   if (!res.ok) {
     throw new Error(`Could not load the example workload (HTTP ${res.status}). Is \`aura serve\` running?`);
   }
@@ -191,13 +192,13 @@ export async function fetchExample(): Promise<string> {
 export async function analyzeWorkload(yamlText: string): Promise<AnalyzeResponse> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/api/analyze`, {
+    res = await fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ yaml_text: yamlText }),
     });
   } catch {
-    throw new Error(`Could not reach the AURA API at ${API_BASE}. Run \`aura serve\` in another terminal.`);
+    throw new Error("Could not reach the AURA API. Run `aura serve` in another terminal.");
   }
 
   const data = await res.json();

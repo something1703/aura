@@ -15,7 +15,7 @@ terraform/
 │   └── queue/                # durable SQS queue + DLQ (event-driven-buffered pattern)
 └── environments/
     ├── flash-commerce/      # the workload AURA is analyzing — see below
-    └── aura-control-plane/  # AURA's own API, deployed — see below
+    └── aura-control-plane/  # AURA's own API + web UI, deployed — see below
 ```
 
 ## Generated environments — closing the AURA → Terraform loop
@@ -140,34 +140,53 @@ terraform destroy         # tear it down when finished
 
 "ECS deployment for the AURA control plane, if desired"
 (docs/IMPLEMENTATION_PHASES.md Phase 3) — optional, separate infra from the
-flash-commerce demo above. Deploys AURA's own API (`Dockerfile` at the repo
-root) behind an ALB in a single region, plus the ECR repository to push it
-to. No database: the API is stateless, so this skips the HA treatment given
-to the workload it analyzes.
+flash-commerce demo above. Deploys both AURA's own API (`Dockerfile` at the
+repo root) and its web UI (`Dockerfile.web`), each behind its own ALB in a
+single region, plus the two ECR repositories to push them to. No database:
+the API is stateless, so this skips the HA treatment given to the workload
+it analyzes.
+
+The two services are wired together automatically: the web task's
+`AURA_API_URL` env var is set to the API ALB's real DNS name, read at
+request time by [`web/src/app/api/[...path]/route.ts`](../web/src/app/api/%5B...path%5D/route.ts)
+— not baked into the image at build time, so the exact same Docker image
+works unchanged in any other deployment too.
 
 ```bash
 cd terraform/environments/aura-control-plane
 terraform init
 terraform validate
 terraform plan
-terraform apply            # creates the ECR repo, VPC, ALB, and an ECS service
-                            # that will sit unhealthy until you push an image:
+terraform apply            # creates 2 ECR repos, VPC, 2 ALBs, and 2 ECS
+                            # services that will sit unhealthy until you
+                            # push images:
 
 aws ecr get-login-password --region ap-south-1 \
-  | docker login --username AWS --password-stdin "$(terraform output -raw ecr_repository_url | cut -d/ -f1)"
-docker build -t "$(terraform output -raw ecr_repository_url):latest" -f ../../../Dockerfile ../../..
-docker push "$(terraform output -raw ecr_repository_url):latest"
-# ECS picks up the new image on its own within a few minutes, or force it:
-aws ecs update-service --cluster aura-control-plane-demo-cluster \
-  --service aura-control-plane-demo-service --force-new-deployment --region ap-south-1
+  | docker login --username AWS --password-stdin "$(terraform output -raw api_ecr_repository_url | cut -d/ -f1)"
 
-curl "http://$(terraform output -raw alb_dns_name)/api/health"
+docker build -t "$(terraform output -raw api_ecr_repository_url):latest" -f ../../../Dockerfile ../../..
+docker push "$(terraform output -raw api_ecr_repository_url):latest"
+
+docker build -t "$(terraform output -raw web_ecr_repository_url):latest" -f ../../../Dockerfile.web ../../..
+docker push "$(terraform output -raw web_ecr_repository_url):latest"
+
+# ECS picks up new images on its own within a few minutes, or force it:
+aws ecs update-service --cluster aura-control-plane-demo-api-cluster \
+  --service aura-control-plane-demo-api-service --force-new-deployment --region ap-south-1
+aws ecs update-service --cluster aura-control-plane-demo-web-cluster \
+  --service aura-control-plane-demo-web-service --force-new-deployment --region ap-south-1
+
+curl "http://$(terraform output -raw api_alb_dns_name)/api/health"
+open "http://$(terraform output -raw web_alb_dns_name)"   # the actual app
 terraform destroy          # tear it down when finished
 ```
 
-Point the web UI at it with `NEXT_PUBLIC_AURA_API_URL=http://<alb_dns_name>`,
-and set `-var web_origin=https://<wherever-the-ui-ends-up>` so CORS allows it
-(the UI itself isn't deployed by this stack).
+A later `docker build`/`push`/`update-service` for either image is a normal
+rolling ECS deployment, not a break-the-world event: new tasks come up
+alongside the running ones, only take traffic once they pass the ALB health
+check, and old tasks drain after — see `deployment_circuit_breaker` in
+`modules/compute/main.tf`, which automatically rolls back a deployment whose
+new tasks never stabilize.
 
 ## Compliance: never the default VPC
 
