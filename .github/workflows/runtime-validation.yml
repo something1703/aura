@@ -16,10 +16,24 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # jobs.<job_id>.if only has access to the github/needs/vars/inputs
+  # contexts, not secrets (confirmed against a real run's own error
+  # annotation: "Unrecognized named-value: 'secrets'") - see ci.yml's
+  # matching check-aws-secret job for the same fix, needed here too.
+  check-aws-secret:
+    name: Check whether AWS_ROLE_ARN is configured
+    runs-on: ubuntu-latest
+    outputs:
+      has-secret: ${{ steps.check.outputs.has-secret }}
+    steps:
+      - id: check
+        run: echo "has-secret=${{ secrets.AWS_ROLE_ARN != '' }}" >> "$GITHUB_OUTPUT"
+
   validate-deployed:
     name: aura validate-deployed
     runs-on: ubuntu-latest
-    if: ${{ secrets.AWS_ROLE_ARN != '' }}
+    needs: check-aws-secret
+    if: needs.check-aws-secret.outputs.has-secret == 'true'
     permissions:
       id-token: write
       contents: read

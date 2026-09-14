@@ -111,6 +111,21 @@ jobs:
           exit-code: "1"
           severity: "CRITICAL,HIGH"
 
+  # jobs.<job_id>.if only has access to the github/needs/vars/inputs
+  # contexts, not secrets (confirmed against a real run's own error
+  # annotation: "Unrecognized named-value: 'secrets'") - so "does this
+  # secret exist" has to be resolved in a step (where secrets IS
+  # available) and passed downstream as a job output for terraform-plan's
+  # if: to key off via needs, below.
+  check-aws-secret:
+    name: Check whether AWS_ROLE_ARN is configured
+    runs-on: ubuntu-latest
+    outputs:
+      has-secret: ${{ steps.check.outputs.has-secret }}
+    steps:
+      - id: check
+        run: echo "has-secret=${{ secrets.AWS_ROLE_ARN != '' }}" >> "$GITHUB_OUTPUT"
+
   # Runs only once the repo owner adds AWS_ROLE_ARN as a repository secret
   # (an IAM role trusted for GitHub's OIDC provider — no long-lived access
   # keys). Until then this job is a no-op so CI never depends on real
@@ -118,8 +133,8 @@ jobs:
   terraform-plan:
     name: Terraform plan (real AWS, opt-in)
     runs-on: ubuntu-latest
-    needs: terraform
-    if: ${{ secrets.AWS_ROLE_ARN != '' }}
+    needs: [terraform, check-aws-secret]
+    if: needs.check-aws-secret.outputs.has-secret == 'true'
     permissions:
       id-token: write
       contents: read
