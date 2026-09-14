@@ -27,13 +27,20 @@ variable "engine_version" {
 }
 
 variable "instance_class" {
-  type    = string
-  default = "db.t4g.micro"
+  description = "db.t3.micro (x86), not db.t4g.micro (Graviton/ARM): the ARM burstable pool is newer and smaller, and has been observed to return InsufficientDBInstanceCapacity for Multi-AZ in ap-south-1 when the older, more broadly-provisioned t3 family succeeds immediately."
+  type        = string
+  default     = "db.t3.micro"
 }
 
 variable "allocated_storage" {
   type    = number
   default = 20
+}
+
+variable "storage_type" {
+  description = "gp3 (not the provider's gp2 default): AWS's current-generation general-purpose SSD — cheaper and decouples IOPS/throughput from volume size, and has had a larger capacity pool than gp2 in practice."
+  type        = string
+  default     = "gp3"
 }
 
 variable "multi_az" {

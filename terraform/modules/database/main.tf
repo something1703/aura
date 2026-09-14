@@ -55,6 +55,7 @@ resource "aws_db_instance" "this" {
 
   # Common to both.
   multi_az               = var.multi_az
+  storage_type           = var.storage_type
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
   skip_final_snapshot    = true

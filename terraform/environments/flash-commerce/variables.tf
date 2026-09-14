@@ -35,9 +35,9 @@ variable "secondary_desired_count" {
 }
 
 variable "database_instance_class" {
-  description = "Small/cheap by default for a demo. Size up for anything beyond that."
+  description = "Small/cheap by default for a demo. db.t3.micro rather than db.t4g.micro: see modules/database/variables.tf for why. Size up for anything beyond a demo."
   type        = string
-  default     = "db.t4g.micro"
+  default     = "db.t3.micro"
 }
 
 variable "database_multi_az_secondary" {
